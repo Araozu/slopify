@@ -1,4 +1,8 @@
 import { browser } from '$app/environment';
+import {
+	setTheme as setModeWatcherTheme,
+	themeStorageKey as modeWatcherThemeStorageKey
+} from 'mode-watcher';
 import { writable } from 'svelte/store';
 
 export const themes = [
@@ -6,33 +10,53 @@ export const themes = [
 	{ id: 'wishful-aurosa', name: 'Wishful Aurosa' },
 	{ id: 'misty-dream', name: 'Misty Dream' },
 	{ id: 'twilight-echoes', name: 'Twilight Echoes' },
-	{ id: 'crimson-shade', name: 'Crimson Shade' }
+	{ id: 'crimson-shade', name: 'Crimson Shade' },
+	{ id: 'blooming-chapter', name: 'Blooming Chapter' },
+	{ id: 'spectral-mist', name: 'Spectral Mist' },
+	{ id: 'golden-plume', name: 'Golden Plume' },
+	{ id: 'forest-ripple', name: 'Forest Ripple' }
 ] as const;
 
 export type ThemeId = (typeof themes)[number]['id'];
 
-const DEFAULT_THEME: ThemeId = 'corporate-memo';
+export const DEFAULT_THEME: ThemeId = 'corporate-memo';
+export const THEME_STORAGE_KEY = 'slopify-theme';
+
+modeWatcherThemeStorageKey.current = THEME_STORAGE_KEY;
+
+function isThemeId(value: string): value is ThemeId {
+	return themes.some((theme) => theme.id === value);
+}
+
+function getStoredTheme(): ThemeId | null {
+	if (!browser) return null;
+
+	const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+	return storedTheme && isThemeId(storedTheme) ? storedTheme : null;
+}
+
+function applyTheme(theme: ThemeId) {
+	if (!browser) return;
+	setModeWatcherTheme(theme);
+}
 
 function createThemeStore() {
-	const { subscribe, set } = writable<ThemeId>(DEFAULT_THEME);
+	const initialTheme = getStoredTheme() ?? DEFAULT_THEME;
+	const { subscribe, set } = writable<ThemeId>(initialTheme);
+
+	applyTheme(initialTheme);
 
 	return {
 		subscribe,
 		init: () => {
-			if (!browser) return;
-			const stored = localStorage.getItem('slopify-theme') as ThemeId;
-			if (stored && themes.some((t) => t.id === stored)) {
-				set(stored);
-				document.documentElement.setAttribute('data-theme', stored);
-			} else {
-				document.documentElement.setAttribute('data-theme', DEFAULT_THEME);
-			}
+			const storedTheme = getStoredTheme() ?? DEFAULT_THEME;
+			set(storedTheme);
+			applyTheme(storedTheme);
 		},
 		setTheme: (theme: ThemeId) => {
 			if (!browser) return;
 			set(theme);
-			localStorage.setItem('slopify-theme', theme);
-			document.documentElement.setAttribute('data-theme', theme);
+			applyTheme(theme);
 		}
 	};
 }

@@ -31,37 +31,46 @@
 
 <style>
 	.theme-preview {
-		background: color-mix(in oklab, var(--sparkle-core) 18%, white);
-		border: 1px solid color-mix(in oklab, var(--sparkle-core) 28%, white);
+		background: var(--sparkle-core);
 	}
 
 	.theme-preview__sparkle {
-		color: var(--sparkle-core);
-		filter: drop-shadow(0 0 4px var(--sparkle-shadow));
+		color: #000;
 	}
 
 	[data-theme-preview='corporate-memo'] {
 		--sparkle-core: var(--theme-corporate-memo-preview);
-		--sparkle-shadow: var(--theme-corporate-memo-shadow);
 	}
 
 	[data-theme-preview='wishful-aurosa'] {
 		--sparkle-core: var(--theme-wishful-aurosa-preview);
-		--sparkle-shadow: var(--theme-wishful-aurosa-shadow);
 	}
 
 	[data-theme-preview='misty-dream'] {
 		--sparkle-core: var(--theme-misty-dream-preview);
-		--sparkle-shadow: var(--theme-misty-dream-shadow);
 	}
 
 	[data-theme-preview='twilight-echoes'] {
 		--sparkle-core: var(--theme-twilight-echoes-preview);
-		--sparkle-shadow: var(--theme-twilight-echoes-shadow);
 	}
 
 	[data-theme-preview='crimson-shade'] {
 		--sparkle-core: var(--theme-crimson-shade-preview);
-		--sparkle-shadow: var(--theme-crimson-shade-shadow);
+	}
+
+	[data-theme-preview='blooming-chapter'] {
+		--sparkle-core: var(--theme-blooming-chapter-preview);
+	}
+
+	[data-theme-preview='spectral-mist'] {
+		--sparkle-core: var(--theme-spectral-mist-preview);
+	}
+
+	[data-theme-preview='golden-plume'] {
+		--sparkle-core: var(--theme-golden-plume-preview);
+	}
+
+	[data-theme-preview='forest-ripple'] {
+		--sparkle-core: var(--theme-forest-ripple-preview);
 	}
 </style>

@@ -31,9 +31,9 @@
 			>
 				Chat
 			</a>
-			<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 			<a
-				href={resolve('/history' as any)}
+				href="/history"
 				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
 			>
 				History
