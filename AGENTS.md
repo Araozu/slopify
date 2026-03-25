@@ -32,11 +32,6 @@ This project is using Vite+, a unified toolchain built on top of Vite, Rolldown,
 - dlx - Execute a package binary without installing it as a dependency
 - cache - Manage the task cache
 
-### Build
-
-- build - Build for production
-- pack - Build libraries
-- preview - Preview production build
 
 ### Manage Dependencies
 
@@ -53,10 +48,6 @@ Vite+ automatically detects and wraps the underlying package manager such as pnp
 - link (`ln`) / unlink - Manage local package links
 - pm - Forward a command to the package manager
 
-### Maintain
-
-- upgrade - Update `vp` itself to the latest version
-
 These commands map to their corresponding tools. For example, `vp dev --port 3000` runs Vite's dev server and works the same as Vite. `vp test` runs JavaScript tests through the bundled Vitest. The version of all tools can be checked using `vp --version`. This is useful when researching documentation, features, and bugs.
 
 ## Common Pitfalls
@@ -69,20 +60,17 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 - **Import JavaScript modules from `vite-plus`:** Instead of importing from `vite` or `vitest`, all modules should be imported from the project's `vite-plus` dependency. For example, `import { defineConfig } from 'vite-plus';` or `import { expect, test, vi } from 'vite-plus/test';`. You must not install `vitest` to import test utilities.
 - **Type-Aware Linting:** There is no need to install `oxlint-tsgolint`, `vp lint --type-aware` works out of the box.
 
-## CI Integration
 
-For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/voidzero-dev/setup-vp) to replace separate `actions/setup-node`, package-manager setup, cache, and install steps with a single action.
+# Slopify
 
-```yaml
-- uses: voidzero-dev/setup-vp@v1
-  with:
-    cache: true
-- run: vp check
-- run: vp test
-```
+Welcome to the project, o AI overlord. This is Slopify, yet another AI chat UI.
 
-## Review Checklist for Agents
 
-- [ ] Run `vp install` after pulling remote changes and before getting started.
-- [ ] Run `vp check` and `vp test` to validate changes.
-<!--VITE PLUS END-->
+## Frontend
+
+- Use shadcn svelte
+- Always use colors from CSS variables, never have inline hex/rgb/other colors
+- Prefer using shadcn components rather than writing custom ones
+
+
+
