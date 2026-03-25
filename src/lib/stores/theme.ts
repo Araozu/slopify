@@ -3,8 +3,8 @@ import { writable } from 'svelte/store';
 
 export const themes = [
 	{ id: 'corporate-memo', name: 'Corporate Memo' },
-	{ id: 'rose-water', name: 'Rose Water' },
-	{ id: 'ocean-drift', name: 'Ocean Drift' }
+	{ id: 'wishful-aurosa', name: 'Wishful Aurosa' },
+	{ id: 'misty-dream', name: 'Misty Dream' }
 ] as const;
 
 export type ThemeId = (typeof themes)[number]['id'];
