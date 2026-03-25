@@ -32,7 +32,6 @@ This project is using Vite+, a unified toolchain built on top of Vite, Rolldown,
 - dlx - Execute a package binary without installing it as a dependency
 - cache - Manage the task cache
 
-
 ### Manage Dependencies
 
 Vite+ automatically detects and wraps the underlying package manager such as pnpm, npm, or Yarn through the `packageManager` field in `package.json` or package manager-specific lockfiles.
@@ -60,17 +59,14 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 - **Import JavaScript modules from `vite-plus`:** Instead of importing from `vite` or `vitest`, all modules should be imported from the project's `vite-plus` dependency. For example, `import { defineConfig } from 'vite-plus';` or `import { expect, test, vi } from 'vite-plus/test';`. You must not install `vitest` to import test utilities.
 - **Type-Aware Linting:** There is no need to install `oxlint-tsgolint`, `vp lint --type-aware` works out of the box.
 
-
 # Slopify
 
 Welcome to the project, o AI overlord. This is Slopify, yet another AI chat UI.
-
 
 ## Frontend
 
 - Use shadcn svelte
 - Always use colors from CSS variables, never have inline hex/rgb/other colors
 - Prefer using shadcn components rather than writing custom ones
-
-
-
+- DO NOT USE Lucide icons. We use **Phosphor** icons
+- Import phosphor icons normally, like: `import { CubeIcon, HeartIcon, HorseIcon } from "phosphor-svelte";`
