@@ -13,6 +13,8 @@
 backend/
 |- Cargo.toml
 |- PROJECT_SHAPE.md
+|- migrations/
+|- scripts/
 `- src/
    |- app.rs
    |- config.rs
@@ -20,6 +22,10 @@ backend/
    |- chat/
    |  |- contracts.rs
    |  |- streams.rs
+   |  `- mod.rs
+   |- db/
+   |  |- migrate.rs
+   |  |- pool.rs
    |  `- mod.rs
    `- http/
       |- mod.rs
@@ -42,6 +48,12 @@ backend/
   - HTTP-only concerns: routes, handlers, and transport-specific responses like SSE.
 - `src/chat/`
   - Client-facing chat contracts and transport-agnostic chat streaming/message logic.
+- `src/db/`
+  - Postgres connection setup and migration execution logic.
+- `migrations/`
+  - Ordered SQL files applied exactly once.
+- `scripts/`
+  - Shell entrypoints for local and CI automation.
 
 ## Transport Boundary
 
@@ -99,3 +111,11 @@ The backend currently models a thin, stable chat protocol:
 - Store provider extras under metadata instead of pretending all providers match.
 - Prefer SSE for model output streaming; add WebSockets later only for truly bidirectional flows.
 - Preserve a hard line between transport adapters and reusable chat/application logic so Tauri can slot in later without a rewrite.
+
+## Migration Plan
+
+- Keep migrations as ordered `.sql` files in `backend/migrations/`.
+- Run them through `backend/scripts/migrate.sh`.
+- The shell script loads `.env`, requires `DATABASE_URL`, and calls a small Rust migration binary.
+- The Rust migration runner uses SQLx's built-in migrator, which tracks applied migrations in `_sqlx_migrations` and only applies new files.
+- This keeps the workflow automatable, repeatable, and idempotent for local dev, CI, and deploy hooks.

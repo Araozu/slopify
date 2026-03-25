@@ -3,6 +3,8 @@ use std::env;
 pub struct AppConfig {
     host: String,
     port: u16,
+    database_url: String,
+    database_max_connections: u32,
 }
 
 impl AppConfig {
@@ -12,11 +14,30 @@ impl AppConfig {
             .ok()
             .and_then(|value| value.parse::<u16>().ok())
             .unwrap_or(4000);
+        let database_url = env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/slopify".to_string());
+        let database_max_connections = env::var("DATABASE_MAX_CONNECTIONS")
+            .ok()
+            .and_then(|value| value.parse::<u32>().ok())
+            .unwrap_or(5);
 
-        Self { host, port }
+        Self {
+            host,
+            port,
+            database_url,
+            database_max_connections,
+        }
     }
 
     pub fn bind_address(&self) -> String {
         format!("{}:{}", self.host, self.port)
+    }
+
+    pub fn database_url(&self) -> &str {
+        &self.database_url
+    }
+
+    pub fn database_max_connections(&self) -> u32 {
+        self.database_max_connections
     }
 }

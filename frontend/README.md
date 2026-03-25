@@ -8,7 +8,7 @@ Yet another AI chat UI, powered by SvelteKit 5.
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) v4 + [shadcn-svelte](https://shadcn-svelte.com/)
 - **Icons**: [Phosphor Icons](https://phosphoricons.com/)
 - **Tooling**: [Vite+](https://vite.plus/) (vp dev, vp build, vp test)
-- **Database**: [Drizzle ORM](https://orm.drizzle.team/) + PostgreSQL
+- **Backend**: Rust service owns persistence and migrations
 - **Language**: TypeScript
 
 ## Features
@@ -35,26 +35,10 @@ vp build
 vp preview
 ```
 
-## Database
-
-```sh
-# Push schema to database
-pnpm db:push
-
-# Generate migrations
-pnpm db:generate
-
-# Apply migrations
-pnpm db:migrate
-
-# Open Drizzle Studio
-pnpm db:studio
-```
-
 ## Environment
 
-Copy `.env.example` to `.env` and configure your database URL:
+Copy `.env.example` to `.env` if frontend-specific variables are added later:
 
 ```env
-DATABASE_URL="postgres://user:password@host:port/db-name"
+# No required frontend env vars yet.
 ```
