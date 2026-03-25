@@ -1,9 +1,30 @@
-use axum::{Router, routing::get};
+use axum::{
+    http::{Method, header},
+    Router,
+    routing::{get, post},
+};
+use tower_http::cors::{Any, CorsLayer};
 
-use crate::http::handlers::{health, streams};
+use crate::{
+    http::handlers::{chat, health, streams},
+    state::AppState,
+};
 
-pub fn router() -> Router {
+pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health", get(health::health_check))
+        .route(
+            "/api/v1/chat/completions",
+            post(chat::complete_prompt)
+                .options(chat::chat_options)
+                .layer(chat_cors_layer()),
+        )
         .route("/api/v1/streams/hello", get(streams::hello_stream))
+}
+
+fn chat_cors_layer() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::POST, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
 }
