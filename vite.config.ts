@@ -4,12 +4,9 @@ import { defineConfig } from 'vite-plus';
 import { sveltePhosphorOptimize } from 'phosphor-svelte/vite';
 
 export default defineConfig({
-  staged: {
-    "*": "vp check --fix"
-  },
-  server: {
-  		port: 5177
-  	},
-  	lint: { options: { typeAware: true, typeCheck: true } },
-  	plugins: [tailwindcss(), sveltekit(), sveltePhosphorOptimize()]
+	server: {
+		port: 5177
+	},
+	lint: { options: { typeAware: true, typeCheck: true } },
+	plugins: [tailwindcss(), sveltekit(), sveltePhosphorOptimize()]
 });
