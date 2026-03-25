@@ -1,6 +1,6 @@
 # Slopify
 
-Yet another AI chat UI, powered by SvelteKit 5 and a "bestie" persona that answers programming questions through skincare and makeup metaphors.
+Yet another AI chat UI, powered by SvelteKit 5.
 
 ## Tech Stack
 
