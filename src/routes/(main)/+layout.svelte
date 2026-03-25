@@ -1,44 +1,50 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { UserIcon, SignOutIcon, GearIcon, ClockCounterClockwiseIcon } from 'phosphor-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import Logo from '$lib/assets/favicon.svg';
+	import ModeToggle from '$lib/components/mode-toggle/mode-toggle.svelte';
 
 	let { children } = $props();
 </script>
 
 <div class="flex min-h-screen flex-col bg-background text-foreground">
 	<header
-		class="sticky top-0 z-50 flex h-16 w-full items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6"
+		class="sticky top-0 z-50 flex h-8 w-full items-center justify-between border-b bg-background/50 px-3 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 md:px-4"
 	>
-		<nav class="flex items-center gap-6 text-sm font-medium">
-			<a href="/" class="flex items-center gap-2 text-lg font-semibold md:text-base">
-				<img src={Logo} alt="Slopify" class="h-6 w-6" />
-				<span class="hidden sm:inline-block">Slopify</span>
+		<nav class="flex items-center gap-4 text-sm font-semibold">
+			<a href={resolve('/')} class="flex items-center gap-2 transition-opacity hover:opacity-80">
+				<img src={Logo} alt="Slopify" class="h-4 w-4" />
+				<span class="inline-block font-bold">Slopify</span>
 			</a>
 			<a
-				href="/"
-				class="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+				href={resolve('/')}
+				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
 			>
 				Chat
 			</a>
+			<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
 			<a
-				href="/history"
-				class="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+				href={resolve('/history' as any)}
+				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
 			>
 				History
 			</a>
 		</nav>
 
-		<div class="flex items-center gap-4">
+		<div class="flex items-center gap-3">
+			<span class="flex items-center">
+				<ModeToggle />
+			</span>
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger
-					class="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+					class="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
 				>
-					<Avatar.Root class="h-9 w-9">
+					<Avatar.Root class="h-6 w-6">
 						<Avatar.Image src="https://github.com/shadcn.png" alt="@user" />
 						<Avatar.Fallback>
-							<UserIcon size={20} />
+							<UserIcon size={14} />
 						</Avatar.Fallback>
 					</Avatar.Root>
 				</DropdownMenu.Trigger>

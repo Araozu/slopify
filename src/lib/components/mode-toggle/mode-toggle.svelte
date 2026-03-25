@@ -20,8 +20,8 @@
 		{/snippet}
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content align="end">
-		<DropdownMenu.Item onpick={() => setMode('light')}>Light</DropdownMenu.Item>
-		<DropdownMenu.Item onpick={() => setMode('dark')}>Dark</DropdownMenu.Item>
-		<DropdownMenu.Item onpick={() => resetMode()}>System</DropdownMenu.Item>
+		<DropdownMenu.Item onSelect={() => setMode('light')}>Light</DropdownMenu.Item>
+		<DropdownMenu.Item onSelect={() => setMode('dark')}>Dark</DropdownMenu.Item>
+		<DropdownMenu.Item onSelect={() => resetMode()}>System</DropdownMenu.Item>
 	</DropdownMenu.Content>
 </DropdownMenu.Root>
