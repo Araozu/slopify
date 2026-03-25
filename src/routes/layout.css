@@ -460,6 +460,8 @@
 
 @theme inline {
 	--font-sans: 'SF Pro', 'Inter Variable', sans-serif;
+	--font-mono: 'Geist Mono', sans-serif;
+
 	--theme-corporate-memo-preview: oklch(0.44 0.01 255);
 	--theme-wishful-aurosa-preview: oklch(0.8 0.08 145);
 	--theme-misty-dream-preview: oklch(0.79 0.063 202);

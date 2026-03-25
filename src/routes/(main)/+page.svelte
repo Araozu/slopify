@@ -61,8 +61,8 @@
 	<!-- Left Sidebar: Recent Chats -->
 	<aside class="flex min-h-0 w-64 flex-col border-r bg-muted/30 backdrop-blur-md">
 		<div class="flex items-center justify-between p-4">
-			<h2 class="text-[10px] font-black tracking-widest text-foreground/40 uppercase">
-				Recent Slops
+			<h2 class="text-[10px] font-black text-foreground/40 uppercase">
+				Recent
 			</h2>
 			<Button
 				variant="ghost"
@@ -73,12 +73,12 @@
 			</Button>
 		</div>
 		<ScrollArea.Root class="flex-1">
-			<div class="space-y-1 p-2">
+			<div class="space-y-2 p-2">
 				{#each MOCK_CHATS as chat (chat.id)}
 					<button
 						onclick={() => setActiveChat(chat.id)}
 						class={cn(
-							'group flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-all',
+							'group flex w-full flex-col gap-1 rounded-xl px-3 py-1.5 text-left transition-all',
 							activeChatId === chat.id
 								? 'bg-background shadow-sm ring-1 shadow-primary/5 ring-border'
 								: 'hover:bg-muted/80'
@@ -103,7 +103,7 @@
 
 	<!-- Center: Chat Messages -->
 	<main class="flex min-h-0 flex-1 flex-col bg-background/50 backdrop-blur-sm">
-		<header class="flex h-12 items-center border-b bg-background/20 px-6 backdrop-blur-xl">
+		<header class="flex items-center border-b bg-background/20 px-6 py-1 backdrop-blur-xl">
 			<div class="flex items-center gap-2">
 				<div
 					class="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary"
@@ -125,7 +125,10 @@
 								message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
 							)}
 						>
-							<Avatar.Root class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background">
+							<Avatar.Root 
+								title={message.role === "assistant" ? "Clanker" : "Human"}
+								class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background"
+							>
 								<Avatar.Fallback
 									class={message.role === 'assistant'
 										? 'border border-primary/20 bg-primary/10 text-primary'
@@ -149,7 +152,7 @@
 										'rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1',
 										message.role === 'user'
 											? 'bg-primary text-primary-foreground ring-primary/20'
-											: 'bg-background/80 ring-border backdrop-blur-md'
+											: 'bg-background/80 ring-border backdrop-blur-md font-mono text-xs'
 									)}
 								>
 									{message.content}
@@ -185,7 +188,7 @@
 			<p
 				class="mt-3 text-center text-[10px] font-medium tracking-widest text-muted-foreground/30 uppercase"
 			>
-				Slopify can make mistakes. Always double cleanse your code.
+				You know by now the clanker hallucinates... like a lot. Double check.
 			</p>
 		</footer>
 	</main>
