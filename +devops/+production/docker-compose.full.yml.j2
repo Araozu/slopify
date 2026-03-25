@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     environment:
       TZ: America/Lima
+    env_file:
+      - ./.env.database
     networks:
       - proxy
       - {{ project_name }}-{{ project_stage }}-network
