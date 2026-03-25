@@ -5,8 +5,15 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import Logo from '$lib/assets/favicon.svg';
 	import ModeToggle from '$lib/components/mode-toggle/mode-toggle.svelte';
+	import ThemeToggle from '$lib/components/theme-toggle/theme-toggle.svelte';
+	import { onMount } from 'svelte';
+	import { theme } from '$lib/stores/theme';
 
 	let { children } = $props();
+
+	onMount(() => {
+		theme.init();
+	});
 </script>
 
 <div class="flex min-h-screen flex-col bg-background text-foreground">
@@ -34,7 +41,8 @@
 		</nav>
 
 		<div class="flex items-center gap-3">
-			<span class="flex items-center">
+			<span class="flex items-center gap-2">
+				<ThemeToggle />
 				<ModeToggle />
 			</span>
 			<DropdownMenu.Root>
