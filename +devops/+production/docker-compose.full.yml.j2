@@ -12,6 +12,7 @@ services:
       - {{ project_name }}-{{ project_stage }}-network
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
       - "traefik.http.routers.{{ project_name }}-{{ project_stage }}-full.rule=Host(`slopify.araoz.dev`)"
       - "traefik.http.routers.{{ project_name }}-{{ project_stage }}-full.entrypoints=websecure"
       - "traefik.http.routers.{{ project_name }}-{{ project_stage }}-full.tls=true"

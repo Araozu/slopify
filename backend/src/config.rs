@@ -15,8 +15,7 @@ impl AppConfig {
             .ok()
             .and_then(|value| value.parse::<u16>().ok())
             .unwrap_or(4000);
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/slopify".to_string());
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is not set");
         let database_max_connections = env::var("DATABASE_MAX_CONNECTIONS")
             .ok()
             .and_then(|value| value.parse::<u32>().ok())
