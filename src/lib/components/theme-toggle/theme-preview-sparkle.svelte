@@ -58,10 +58,6 @@
 		--sparkle-core: var(--theme-crimson-shade-preview);
 	}
 
-	[data-theme-preview='blooming-chapter'] {
-		--sparkle-core: var(--theme-blooming-chapter-preview);
-	}
-
 	[data-theme-preview='spectral-mist'] {
 		--sparkle-core: var(--theme-spectral-mist-preview);
 	}
@@ -72,5 +68,13 @@
 
 	[data-theme-preview='forest-ripple'] {
 		--sparkle-core: var(--theme-forest-ripple-preview);
+	}
+
+	[data-theme-preview='blazing-fields'] {
+		--sparkle-core: var(--theme-blazing-fields-preview);
+	}
+
+	[data-theme-preview='enchanted-encounter'] {
+		--sparkle-core: var(--theme-enchanted-encounter-preview);
 	}
 </style>

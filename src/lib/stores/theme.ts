@@ -7,14 +7,15 @@ import { writable } from 'svelte/store';
 
 export const themes = [
 	{ id: 'corporate-memo', name: 'Corporate Memo' },
+	{ id: 'forest-ripple', name: 'Forest Ripple' },
 	{ id: 'wishful-aurosa', name: 'Wishful Aurosa' },
-	{ id: 'misty-dream', name: 'Misty Dream' },
-	{ id: 'twilight-echoes', name: 'Twilight Echoes' },
-	{ id: 'crimson-shade', name: 'Crimson Shade' },
-	{ id: 'blooming-chapter', name: 'Blooming Chapter' },
-	{ id: 'spectral-mist', name: 'Spectral Mist' },
 	{ id: 'golden-plume', name: 'Golden Plume' },
-	{ id: 'forest-ripple', name: 'Forest Ripple' }
+	{ id: 'blazing-fields', name: 'Blazing Fields' },
+	{ id: 'crimson-shade', name: 'Crimson Shade' },
+	{ id: 'enchanted-encounter', name: 'Enchanted Encounter' },
+	{ id: 'twilight-echoes', name: 'Twilight Echoes' },
+	{ id: 'spectral-mist', name: 'Spectral Mist' },
+	{ id: 'misty-dream', name: 'Misty Dream' }
 ] as const;
 
 export type ThemeId = (typeof themes)[number]['id'];
