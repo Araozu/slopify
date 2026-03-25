@@ -185,24 +185,24 @@
 }
 
 .dark[data-theme='twilight-echoes'] {
-	--background: oklch(0.19 0.028 292);
+	--background: oklch(0.2 0.018 292);
 	--foreground: oklch(0.92 0.018 300);
-	--card: oklch(0.235 0.035 292);
+	--card: oklch(0.245 0.022 292);
 	--card-foreground: oklch(0.92 0.018 300);
-	--popover: oklch(0.215 0.03 292);
+	--popover: oklch(0.225 0.02 292);
 	--popover-foreground: oklch(0.92 0.018 300);
-	--primary: oklch(0.72 0.14 301);
+	--primary: oklch(0.76 0.11 301);
 	--primary-foreground: oklch(0.15 0.02 290);
-	--secondary: oklch(0.31 0.055 286);
+	--secondary: oklch(0.34 0.03 286);
 	--secondary-foreground: oklch(0.94 0.015 300);
-	--muted: oklch(0.27 0.035 292);
-	--muted-foreground: oklch(0.73 0.04 298);
-	--accent: oklch(0.68 0.13 322);
+	--muted: oklch(0.295 0.02 292);
+	--muted-foreground: oklch(0.77 0.028 298);
+	--accent: oklch(0.72 0.1 322);
 	--accent-foreground: oklch(0.95 0.012 302);
 	--destructive: oklch(0.65 0.18 25);
-	--border: oklch(0.8 0.04 300 / 18%);
-	--input: oklch(0.8 0.04 300 / 18%);
-	--ring: oklch(0.72 0.14 301);
+	--border: oklch(0.82 0.024 300 / 18%);
+	--input: oklch(0.82 0.024 300 / 18%);
+	--ring: oklch(0.76 0.11 301);
 }
 
 [data-theme='crimson-shade'] {
@@ -438,24 +438,24 @@
 }
 
 .dark[data-theme='enchanted-encounter'] {
-	--background: oklch(0.19 0.018 330);
+	--background: oklch(0.2 0.014 330);
 	--foreground: oklch(0.94 0.016 346);
-	--card: oklch(0.235 0.024 332);
+	--card: oklch(0.245 0.018 332);
 	--card-foreground: oklch(0.94 0.016 346);
-	--popover: oklch(0.215 0.02 332);
+	--popover: oklch(0.225 0.016 332);
 	--popover-foreground: oklch(0.94 0.016 346);
-	--primary: oklch(0.71 0.14 346);
+	--primary: oklch(0.74 0.11 346);
 	--primary-foreground: oklch(0.16 0.014 330);
-	--secondary: oklch(0.31 0.024 352);
+	--secondary: oklch(0.34 0.018 352);
 	--secondary-foreground: oklch(0.94 0.016 346);
-	--muted: oklch(0.28 0.018 334);
-	--muted-foreground: oklch(0.75 0.026 342);
-	--accent: oklch(0.74 0.09 318);
+	--muted: oklch(0.295 0.016 334);
+	--muted-foreground: oklch(0.78 0.02 342);
+	--accent: oklch(0.77 0.072 318);
 	--accent-foreground: oklch(0.18 0.014 330);
 	--destructive: oklch(0.65 0.18 25);
-	--border: oklch(0.84 0.018 338 / 18%);
-	--input: oklch(0.84 0.018 338 / 18%);
-	--ring: oklch(0.71 0.14 346);
+	--border: oklch(0.85 0.014 338 / 18%);
+	--input: oklch(0.85 0.014 338 / 18%);
+	--ring: oklch(0.74 0.11 346);
 }
 
 @theme inline {
