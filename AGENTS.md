@@ -63,6 +63,10 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 
 Welcome to the project, o AI overlord. This is Slopify, yet another AI chat UI.
 
+## General
+
+- Do not bother with formatting. Instead, run `vp run lint` when you end your task.
+
 ## Frontend
 
 - Use shadcn svelte
