@@ -2,7 +2,6 @@
 	import {
 		ChatCircleIcon,
 		PaperPlaneRightIcon,
-		CaretRightIcon,
 		PlusIcon,
 		RobotIcon,
 		UserIcon
@@ -12,94 +11,71 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { cn } from '$lib/utils';
+	import { MOCK_CHATS } from '$lib/mock-data';
+	import { untrack } from 'svelte';
 
-	type Message = {
-		id: string;
-		role: 'user' | 'assistant';
-		content: string;
-		timestamp: string;
-	};
+	let activeChatId = $state(MOCK_CHATS[0].id);
+	let activeChat = $derived(MOCK_CHATS.find((c) => c.id === activeChatId) || MOCK_CHATS[0]);
+	let messages = $derived(activeChat.messages);
 
-	type Chat = {
-		id: string;
-		title: string;
-		lastMessage: string;
-		active?: boolean;
-	};
+	let viewportRef: HTMLElement | null = $state(null);
 
-	const chats: Chat[] = [
-		{
-			id: '1',
-			title: 'The skincare routine',
-			lastMessage: 'The double cleanse is key!',
-			active: true
-		},
-		{
-			id: '2',
-			title: 'TS vs JS debate',
-			lastMessage: 'Types are just better for the soul.',
-			active: false
-		},
-		{
-			id: '3',
-			title: 'Latte art tips',
-			lastMessage: 'Wait, is it oat milk or almond?',
-			active: false
+	function scrollToMessage(id: string) {
+		const element = document.getElementById(id);
+		if (element && viewportRef) {
+			element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		}
-	];
+	}
 
-	const messages: Message[] = [
-		{
-			id: 'm1',
-			role: 'user',
-			content: "I'm looking for a way to make my code as glowy as my skin. Any tips?",
-			timestamp: '10:00 AM'
-		},
-		{
-			id: 'm2',
-			role: 'assistant',
-			content:
-				"Bestie, it's all about that *refactor serum*. Clean imports, type safety, and absolutely NO inline hex codes. That's how you get that natural glow! ✨",
-			timestamp: '10:01 AM'
-		},
-		{
-			id: 'm3',
-			role: 'user',
-			content: 'Omg, thank you! What about the sidebar though? It feels a bit dry.',
-			timestamp: '10:02 AM'
-		},
-		{
-			id: 'm4',
-			role: 'assistant',
-			content:
-				"We're adding that glassmorphism hydration right now. Think backdrop-blur-xl and some juicy Phosphor icons. It's going to be a total look. 💅",
-			timestamp: '10:03 AM'
+	function setActiveChat(id: string) {
+		activeChatId = id;
+		// Reset scroll when switching chats
+		if (viewportRef) {
+			untrack(() => {
+				viewportRef!.scrollTo({ top: 0 });
+			});
 		}
-	];
+	}
 </script>
 
 <div class="flex h-[calc(100vh-2rem)] w-full overflow-hidden bg-background">
 	<!-- Left Sidebar: Recent Chats -->
 	<aside class="flex w-64 flex-col border-r bg-muted/30 backdrop-blur-md">
 		<div class="flex items-center justify-between p-4">
-			<h2 class="text-sm font-bold tracking-tight text-foreground/70 uppercase">Recent Slops</h2>
-			<Button variant="ghost" size="icon-xs" class="rounded-full">
+			<h2 class="text-[10px] font-black tracking-widest text-foreground/40 uppercase">
+				Recent Slops
+			</h2>
+			<Button
+				variant="ghost"
+				size="icon-xs"
+				class="rounded-full hover:bg-primary/10 hover:text-primary"
+			>
 				<PlusIcon size={14} />
 			</Button>
 		</div>
 		<ScrollArea.Root class="flex-1">
 			<div class="space-y-1 p-2">
-				{#each chats as chat (chat.id)}
+				{#each MOCK_CHATS as chat (chat.id)}
 					<button
+						onclick={() => setActiveChat(chat.id)}
 						class={cn(
-							'flex w-full flex-col gap-1 rounded-lg px-3 py-2 text-left transition-all hover:bg-muted/80',
-							chat.active && 'bg-muted shadow-sm ring-1 ring-border'
+							'group flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-all',
+							activeChatId === chat.id
+								? 'bg-background shadow-sm ring-1 shadow-primary/5 ring-border'
+								: 'hover:bg-muted/80'
 						)}
 					>
 						<div class="flex items-center justify-between">
-							<span class="truncate text-sm font-semibold">{chat.title}</span>
+							<span
+								class={cn(
+									'truncate text-sm font-semibold transition-colors',
+									activeChatId === chat.id
+										? 'text-primary'
+										: 'text-foreground/80 group-hover:text-foreground'
+								)}>{chat.title}</span
+							>
 						</div>
-						<p class="line-clamp-1 text-xs text-muted-foreground">{chat.lastMessage}</p>
+						<p class="line-clamp-1 text-[11px] text-muted-foreground/70">{chat.lastMessage}</p>
 					</button>
 				{/each}
 			</div>
@@ -108,49 +84,58 @@
 
 	<!-- Center: Chat Messages -->
 	<main class="flex flex-1 flex-col bg-background/50 backdrop-blur-sm">
-		<header class="flex h-12 items-center border-b px-6">
+		<header class="flex h-12 items-center border-b bg-background/20 px-6 backdrop-blur-xl">
 			<div class="flex items-center gap-2">
-				<ChatCircleIcon size={18} class="text-primary" weight="fill" />
-				<h1 class="text-sm font-bold">The skincare routine</h1>
+				<div
+					class="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary"
+				>
+					<ChatCircleIcon size={14} weight="fill" />
+				</div>
+				<h1 class="text-sm font-bold tracking-tight">{activeChat.title}</h1>
 			</div>
 		</header>
 
-		<ScrollArea.Root class="flex-1 px-4 py-6">
-			<div class="mx-auto max-w-3xl space-y-8">
+		<ScrollArea.Root class="flex-1" bind:viewportRef>
+			<div class="mx-auto max-w-3xl space-y-10 px-6 py-10">
 				{#each messages as message (message.id)}
 					<div
+						id={message.id}
 						class={cn(
-							'flex w-full gap-4 px-2 py-1',
+							'flex w-full animate-in gap-5 transition-all duration-500 fade-in slide-in-from-bottom-2',
 							message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
 						)}
 					>
-						<Avatar.Root class="mt-1 h-8 w-8 shrink-0">
-							<Avatar.Fallback class={message.role === 'assistant' ? 'bg-primary/10' : 'bg-muted'}>
+						<Avatar.Root class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background">
+							<Avatar.Fallback
+								class={message.role === 'assistant'
+									? 'border border-primary/20 bg-primary/10 text-primary'
+									: 'border border-border bg-secondary text-secondary-foreground'}
+							>
 								{#if message.role === 'assistant'}
-									<RobotIcon size={16} class="text-primary" />
+									<RobotIcon size={18} />
 								{:else}
-									<UserIcon size={16} />
+									<UserIcon size={18} />
 								{/if}
 							</Avatar.Fallback>
 						</Avatar.Root>
 						<div
 							class={cn(
-								'flex flex-col gap-2',
+								'flex max-w-[85%] flex-col gap-2.5',
 								message.role === 'user' ? 'items-end' : 'items-start'
 							)}
 						>
 							<div
 								class={cn(
-									'rounded-2xl px-4 py-2 text-sm leading-relaxed shadow-sm ring-1',
+									'rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1',
 									message.role === 'user'
 										? 'bg-primary text-primary-foreground ring-primary/20'
-										: 'bg-muted/50 ring-border'
+										: 'bg-background/80 ring-border backdrop-blur-md'
 								)}
 							>
 								{message.content}
 							</div>
 							<span
-								class="text-[10px] font-medium tracking-widest text-muted-foreground/60 uppercase"
+								class="px-1 text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
 							>
 								{message.timestamp}
 							</span>
@@ -160,44 +145,59 @@
 			</div>
 		</ScrollArea.Root>
 
-		<footer class="p-4">
+		<footer class="p-6">
 			<div
-				class="mx-auto flex max-w-3xl items-center gap-2 rounded-2xl bg-muted/50 p-2 ring-1 ring-border transition-all focus-within:ring-primary/40"
+				class="mx-auto flex max-w-3xl items-center gap-3 rounded-[20px] bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
 			>
 				<Input
 					placeholder="Message Slopify..."
-					class="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+					class="h-9 border-0 bg-transparent px-3 text-sm placeholder:text-muted-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
 				/>
-				<Button size="icon-sm" variant="default" class="rounded-xl shadow-md">
-					<PaperPlaneRightIcon size={16} weight="bold" />
+				<Button
+					size="icon-sm"
+					variant="default"
+					class="h-9 w-9 rounded-[14px] shadow-lg shadow-primary/20 transition-transform active:scale-95"
+				>
+					<PaperPlaneRightIcon size={18} weight="bold" />
 				</Button>
 			</div>
-			<p class="mt-2 text-center text-[10px] text-muted-foreground/50">
+			<p
+				class="mt-3 text-center text-[10px] font-medium tracking-widest text-muted-foreground/30 uppercase"
+			>
 				Slopify can make mistakes. Always double cleanse your code.
 			</p>
 		</footer>
 	</main>
 
 	<!-- Right Sidebar: TOC/Message List -->
-	<aside class="hidden w-56 flex-col border-l bg-muted/20 backdrop-blur-md lg:flex">
+	<aside class="hidden w-60 flex-col border-l bg-muted/20 backdrop-blur-md lg:flex">
 		<div class="p-4">
-			<h2 class="text-sm font-bold tracking-tight text-foreground/70 uppercase">Message Log</h2>
+			<h2 class="text-[10px] font-black tracking-widest text-foreground/40 uppercase">
+				Message Log
+			</h2>
 		</div>
 		<ScrollArea.Root class="flex-1">
 			<div class="space-y-4 p-4">
 				{#each messages as message (`toc-${message.id}`)}
-					<button class="group flex w-full items-start gap-2 text-left">
-						<CaretRightIcon
-							size={12}
-							class="mt-1 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
-						/>
-						<div class="flex flex-col gap-0.5">
+					<button
+						onclick={() => scrollToMessage(message.id)}
+						class="group flex w-full items-start gap-2.5 text-left transition-all"
+					>
+						<div
+							class="mt-1.5 flex h-1.5 w-1.5 shrink-0 rounded-full transition-all group-hover:scale-125 {message.role ===
+							'assistant'
+								? 'bg-primary'
+								: 'bg-muted-foreground/30'}"
+						></div>
+						<div class="flex flex-col gap-1">
 							<span
-								class="text-[11px] font-bold tracking-tighter text-muted-foreground/70 uppercase"
+								class="text-[10px] font-black tracking-tighter text-muted-foreground/50 uppercase transition-colors group-hover:text-primary/60"
 							>
 								{message.role}
 							</span>
-							<p class="line-clamp-2 text-xs text-foreground/60 group-hover:text-foreground">
+							<p
+								class="line-clamp-2 text-[11px] leading-snug text-foreground/60 transition-colors group-hover:text-foreground"
+							>
 								{message.content}
 							</p>
 						</div>
