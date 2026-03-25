@@ -22,6 +22,7 @@
 	let chats = $state(structuredClone(MOCK_CHATS) as ChatThread[]);
 	let activeChatId = $state(INITIAL_CHAT_ID);
 	let draft = $state('');
+	let apiKey = $state('');
 	let model = $state(DEFAULT_MODEL);
 	let isSending = $state(false);
 	let activeChat = $derived(chats.find((chat) => chat.id === activeChatId) ?? chats[0]);
@@ -61,9 +62,9 @@
 		};
 	}
 
-	function updateActiveChat(nextMessages: Message[]) {
+	function updateActiveChat(chatId: string, nextMessages: Message[]) {
 		chats = chats.map((chat) =>
-			chat.id === activeChatId
+			chat.id === chatId
 				? {
 						...chat,
 						messages: nextMessages,
@@ -74,15 +75,17 @@
 	}
 
 	async function sendMessage() {
+		const chatId = activeChatId;
 		const prompt = draft.trim();
+		const trimmedApiKey = apiKey.trim();
 		const selectedModel = model.trim();
 
-		if (!prompt || !selectedModel || isSending) {
+		if (!prompt || !trimmedApiKey || !selectedModel || isSending) {
 			return;
 		}
 
 		const nextMessages = [...messages, createMessage('user', prompt)];
-		updateActiveChat(nextMessages);
+		updateActiveChat(chatId, nextMessages);
 		draft = '';
 		isSending = true;
 
@@ -90,6 +93,7 @@
 			const response = await fetch(BACKEND_CHAT_ENDPOINT, {
 				method: 'POST',
 				headers: {
+					authorization: `Bearer ${trimmedApiKey}`,
 					'content-type': 'application/json'
 				},
 				body: JSON.stringify({ prompt, model: selectedModel })
@@ -101,10 +105,10 @@
 				throw new Error(payload.error ?? 'The model returned an empty response.');
 			}
 
-			updateActiveChat([...nextMessages, createMessage('assistant', payload.content)]);
+			updateActiveChat(chatId, [...nextMessages, createMessage('assistant', payload.content)]);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to send prompt.';
-			updateActiveChat([...nextMessages, createMessage('assistant', `Error: ${message}`)]);
+			updateActiveChat(chatId, [...nextMessages, createMessage('assistant', `Error: ${message}`)]);
 		} finally {
 			isSending = false;
 		}
@@ -242,7 +246,17 @@
 		</ScrollArea.Root>
 
 		<footer class="p-6">
-			<div class="mx-auto mb-2 flex max-w-3xl items-center gap-2 px-2">
+			<div class="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-2 px-2">
+				<Input
+					bind:value={apiKey}
+					type="password"
+					placeholder="OpenRouter API key"
+					class="h-8 min-w-0 flex-1 border-border/60 bg-background/70 text-xs"
+					disabled={isSending}
+				/>
+				<span class="text-[10px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
+					>api key</span
+				>
 				<Input
 					bind:value={model}
 					placeholder="openai/gpt-4o-mini"
@@ -267,7 +281,7 @@
 					size="icon-sm"
 					variant="default"
 					class="h-9 w-9 rounded-[14px] shadow-lg shadow-primary/20 transition-transform active:scale-95"
-					disabled={isSending || !draft.trim() || !model.trim()}
+					disabled={isSending || !draft.trim() || !apiKey.trim() || !model.trim()}
 					onclick={sendMessage}
 				>
 					<PaperPlaneRightIcon size={18} weight="bold" />

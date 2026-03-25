@@ -2,8 +2,6 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 const OPENROUTER_API_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
-// FIXME: Move this API key to runtime configuration before shipping this anywhere real.
-const OPENROUTER_API_KEY: &str = "sk-or-v1-fixme-hardcoded-openrouter-key";
 
 #[derive(Debug, Clone)]
 pub struct ProviderChatCompletion {
@@ -94,6 +92,7 @@ pub async fn complete_prompt(
     client: &Client,
     prompt: &str,
     model: &str,
+    api_key: &str,
 ) -> Result<ProviderChatCompletion, OpenAiCompatibleError> {
     let payload = OpenAiCompatibleRequest {
         model,
@@ -106,7 +105,7 @@ pub async fn complete_prompt(
 
     let response = client
         .post(OPENROUTER_API_URL)
-        .bearer_auth(OPENROUTER_API_KEY)
+        .bearer_auth(api_key)
         .header("HTTP-Referer", "https://github.com/Araozu/slopify")
         .header("X-Title", "Slopify")
         .json(&payload)

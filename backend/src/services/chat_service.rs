@@ -6,6 +6,7 @@ use crate::providers::openai_compatible::{self, ProviderChatCompletion};
 pub enum ChatServiceError {
     InvalidPrompt,
     InvalidModel,
+    MissingApiKey,
     Provider(openai_compatible::OpenAiCompatibleError),
 }
 
@@ -14,6 +15,7 @@ impl std::fmt::Display for ChatServiceError {
         match self {
             Self::InvalidPrompt => write!(f, "prompt is required"),
             Self::InvalidModel => write!(f, "model is required"),
+            Self::MissingApiKey => write!(f, "an authorization bearer token is required"),
             Self::Provider(error) => write!(f, "{error}"),
         }
     }
@@ -39,6 +41,7 @@ pub async fn complete_prompt(
     client: &Client,
     prompt: String,
     model: String,
+    authorization: Option<&str>,
 ) -> Result<PromptCompletion, ChatServiceError> {
     let trimmed_prompt = prompt.trim();
     if trimmed_prompt.is_empty() {
@@ -50,11 +53,18 @@ pub async fn complete_prompt(
         return Err(ChatServiceError::InvalidModel);
     }
 
+    let api_key = authorization
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .or(authorization.and_then(|value| value.strip_prefix("bearer ")))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or(ChatServiceError::MissingApiKey)?;
+
     let ProviderChatCompletion {
         content,
         model,
         finish_reason,
-    } = openai_compatible::complete_prompt(client, trimmed_prompt, trimmed_model).await?;
+    } = openai_compatible::complete_prompt(client, trimmed_prompt, trimmed_model, api_key).await?;
 
     Ok(PromptCompletion {
         content,

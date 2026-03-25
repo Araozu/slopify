@@ -1,7 +1,7 @@
 use axum::{
     extract::State,
     Json,
-    http::{HeaderValue, StatusCode, header},
+    http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
@@ -10,10 +10,6 @@ use crate::{
     services::chat_service::{self, ChatServiceError},
     state::AppState,
 };
-
-const ACCESS_CONTROL_ALLOW_HEADERS: &str = "content-type";
-const ACCESS_CONTROL_ALLOW_METHODS: &str = "POST, OPTIONS";
-const ACCESS_CONTROL_ALLOW_ORIGIN: &str = "*";
 
 #[derive(Deserialize)]
 pub struct PromptRequest {
@@ -31,10 +27,22 @@ pub struct PromptResponse {
 
 pub async fn complete_prompt(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<PromptRequest>,
 ) -> Response {
-    match chat_service::complete_prompt(&state.http_client, payload.prompt, payload.model).await {
-        Ok(completion) => with_cors(
+    let authorization = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok());
+
+    match chat_service::complete_prompt(
+        &state.http_client,
+        payload.prompt,
+        payload.model,
+        authorization,
+    )
+    .await
+    {
+        Ok(completion) => (
             StatusCode::OK,
             Json(PromptResponse {
                 content: completion.content,
@@ -42,13 +50,14 @@ pub async fn complete_prompt(
                 provider: completion.provider,
                 finish_reason: completion.finish_reason,
             }),
-        ),
+        )
+            .into_response(),
         Err(error) => ApiError::from(error).into_response(),
     }
 }
 
-pub async fn chat_options() -> Response {
-    with_cors(StatusCode::NO_CONTENT, ())
+pub async fn chat_options() -> StatusCode {
+    StatusCode::NO_CONTENT
 }
 
 #[derive(Serialize)]
@@ -68,6 +77,10 @@ impl From<ChatServiceError> for ApiError {
                 status: StatusCode::BAD_REQUEST,
                 message: value.to_string(),
             },
+            ChatServiceError::MissingApiKey => Self {
+                status: StatusCode::BAD_REQUEST,
+                message: value.to_string(),
+            },
             ChatServiceError::Provider(error) => Self {
                 status: StatusCode::BAD_GATEWAY,
                 message: error.to_string(),
@@ -78,24 +91,6 @@ impl From<ChatServiceError> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        with_cors(self.status, Json(ErrorResponse { error: self.message }))
+        (self.status, Json(ErrorResponse { error: self.message })).into_response()
     }
-}
-
-fn with_cors(status: StatusCode, body: impl IntoResponse) -> Response {
-    let mut response = (status, body).into_response();
-    let headers = response.headers_mut();
-    headers.insert(
-        header::ACCESS_CONTROL_ALLOW_ORIGIN,
-        HeaderValue::from_static(ACCESS_CONTROL_ALLOW_ORIGIN),
-    );
-    headers.insert(
-        header::ACCESS_CONTROL_ALLOW_METHODS,
-        HeaderValue::from_static(ACCESS_CONTROL_ALLOW_METHODS),
-    );
-    headers.insert(
-        header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static(ACCESS_CONTROL_ALLOW_HEADERS),
-    );
-    response
 }
