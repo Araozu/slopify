@@ -15,13 +15,16 @@ pub fn router() -> Router<AppState> {
         .route("/health", get(health::health_check))
         .route(
             "/api/v1/chat/completions",
-            post(chat::complete_prompt).options(chat::chat_options),
+            post(chat::complete_prompt)
+                .options(chat::chat_options)
+                .layer(chat_cors_layer()),
         )
         .route("/api/v1/streams/hello", get(streams::hello_stream))
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods([Method::POST, Method::OPTIONS])
-                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]),
-        )
+}
+
+fn chat_cors_layer() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::POST, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
 }
