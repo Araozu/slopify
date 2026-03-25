@@ -5,7 +5,8 @@ export const themes = [
 	{ id: 'corporate-memo', name: 'Corporate Memo' },
 	{ id: 'wishful-aurosa', name: 'Wishful Aurosa' },
 	{ id: 'misty-dream', name: 'Misty Dream' },
-	{ id: 'twilight-echoes', name: 'Twilight Echoes' }
+	{ id: 'twilight-echoes', name: 'Twilight Echoes' },
+	{ id: 'crimson-shade', name: 'Crimson Shade' }
 ] as const;
 
 export type ThemeId = (typeof themes)[number]['id'];

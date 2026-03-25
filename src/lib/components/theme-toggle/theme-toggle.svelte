@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { PaletteIcon, CheckIcon } from 'phosphor-svelte';
 	import { theme, themes, type ThemeId } from '$lib/stores/theme';
+	import ThemePreviewSparkle from '$lib/components/theme-toggle/theme-preview-sparkle.svelte';
 	import * as Button from '$lib/components/ui/button/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 
@@ -25,9 +26,12 @@
 		{#each themes as t (t.id)}
 			<DropdownMenu.Item
 				onSelect={(e) => handleSelect(t.id, e)}
-				class="flex items-center justify-between"
+				class="flex items-center justify-between gap-3"
 			>
-				<span>{t.name}</span>
+				<span class="flex items-center gap-2">
+					<ThemePreviewSparkle themeId={t.id} />
+					<span>{t.name}</span>
+				</span>
 				{#if $theme === t.id}
 					<CheckIcon class="h-4 w-4" />
 				{/if}
