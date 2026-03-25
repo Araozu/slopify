@@ -3,7 +3,6 @@
 	import { UserIcon, SignOutIcon, GearIcon, ClockCounterClockwiseIcon } from 'phosphor-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
-	import Logo from '$lib/assets/favicon.svg';
 	import ModeToggle from '$lib/components/mode-toggle/mode-toggle.svelte';
 	import ThemeToggle from '$lib/components/theme-toggle/theme-toggle.svelte';
 	import { onMount } from 'svelte';
@@ -18,12 +17,11 @@
 
 <div class="flex min-h-screen flex-col bg-background text-foreground">
 	<header
-		class="sticky top-0 z-50 flex h-8 w-full items-center justify-between border-b bg-background/50 px-3 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 md:px-4"
+		class="sticky top-0 z-50 flex h-8 w-full items-center justify-between border-b bg-background/50 px-3 backdrop-blur-xl supports-backdrop-filter:bg-background/40 md:px-4"
 	>
 		<nav class="flex items-center gap-4 text-sm font-semibold">
 			<a href={resolve('/')} class="flex items-center gap-2 transition-opacity hover:opacity-80">
-				<img src={Logo} alt="Slopify" class="h-4 w-4" />
-				<span class="inline-block font-bold">Slopify</span>
+				<span class="inline-block font-bold">✨ Slopify ✨</span>
 			</a>
 			<a
 				href={resolve('/')}
