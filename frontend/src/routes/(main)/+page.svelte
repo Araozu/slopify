@@ -10,12 +10,21 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import { cn } from '$lib/utils';
 	import { MOCK_CHATS } from '$lib/mock-data';
+	import type { ChatThread, Message } from '$lib/types';
+	import { cn } from '$lib/utils';
 	import { tick } from 'svelte';
 
-	let activeChatId = $state(MOCK_CHATS[0].id);
-	let activeChat = $derived(MOCK_CHATS.find((c) => c.id === activeChatId) || MOCK_CHATS[0]);
+	const BACKEND_CHAT_ENDPOINT = 'http://127.0.0.1:4000/api/v1/chat/completions';
+	const DEFAULT_MODEL = 'openai/gpt-4o-mini';
+	const INITIAL_CHAT_ID = MOCK_CHATS[0].id;
+
+	let chats = $state(structuredClone(MOCK_CHATS) as ChatThread[]);
+	let activeChatId = $state(INITIAL_CHAT_ID);
+	let draft = $state('');
+	let model = $state(DEFAULT_MODEL);
+	let isSending = $state(false);
+	let activeChat = $derived(chats.find((chat) => chat.id === activeChatId) ?? chats[0]);
 	let messages = $derived(activeChat.messages);
 	let messageCount = $derived(messages.length);
 
@@ -41,6 +50,71 @@
 
 	function setActiveChat(id: string) {
 		activeChatId = id;
+	}
+
+	function createMessage(role: Message['role'], content: string): Message {
+		return {
+			id: crypto.randomUUID(),
+			role,
+			content,
+			timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+		};
+	}
+
+	function updateActiveChat(nextMessages: Message[]) {
+		chats = chats.map((chat) =>
+			chat.id === activeChatId
+				? {
+						...chat,
+						messages: nextMessages,
+						lastMessage: nextMessages.at(-1)?.content ?? chat.lastMessage
+					}
+				: chat
+		);
+	}
+
+	async function sendMessage() {
+		const prompt = draft.trim();
+		const selectedModel = model.trim();
+
+		if (!prompt || !selectedModel || isSending) {
+			return;
+		}
+
+		const nextMessages = [...messages, createMessage('user', prompt)];
+		updateActiveChat(nextMessages);
+		draft = '';
+		isSending = true;
+
+		try {
+			const response = await fetch(BACKEND_CHAT_ENDPOINT, {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json'
+				},
+				body: JSON.stringify({ prompt, model: selectedModel })
+			});
+
+			const payload = (await response.json()) as { content?: string; error?: string };
+
+			if (!response.ok || !payload.content) {
+				throw new Error(payload.error ?? 'The model returned an empty response.');
+			}
+
+			updateActiveChat([...nextMessages, createMessage('assistant', payload.content)]);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to send prompt.';
+			updateActiveChat([...nextMessages, createMessage('assistant', `Error: ${message}`)]);
+		} finally {
+			isSending = false;
+		}
+	}
+
+	function handleComposerKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter' && !event.shiftKey) {
+			event.preventDefault();
+			void sendMessage();
+		}
 	}
 
 	$effect(() => {
@@ -72,7 +146,7 @@
 		</div>
 		<ScrollArea.Root class="flex-1">
 			<div class="space-y-2 p-2">
-				{#each MOCK_CHATS as chat (chat.id)}
+				{#each chats as chat (chat.id)}
 					<button
 						onclick={() => setActiveChat(chat.id)}
 						class={cn(
@@ -168,17 +242,33 @@
 		</ScrollArea.Root>
 
 		<footer class="p-6">
+			<div class="mx-auto mb-2 flex max-w-3xl items-center gap-2 px-2">
+				<Input
+					bind:value={model}
+					placeholder="openai/gpt-4o-mini"
+					class="h-8 max-w-56 border-border/60 bg-background/70 text-xs"
+					disabled={isSending}
+				/>
+				<span class="text-[10px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
+					>model</span
+				>
+			</div>
 			<div
 				class="mx-auto flex max-w-3xl items-center gap-3 rounded-[20px] bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
 			>
 				<Input
+					bind:value={draft}
 					placeholder="Message Slopify..."
 					class="h-9 border-0 bg-transparent px-3 text-sm placeholder:text-muted-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+					disabled={isSending}
+					onkeydown={handleComposerKeydown}
 				/>
 				<Button
 					size="icon-sm"
 					variant="default"
 					class="h-9 w-9 rounded-[14px] shadow-lg shadow-primary/20 transition-transform active:scale-95"
+					disabled={isSending || !draft.trim() || !model.trim()}
+					onclick={sendMessage}
 				>
 					<PaperPlaneRightIcon size={18} weight="bold" />
 				</Button>

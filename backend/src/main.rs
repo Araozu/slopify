@@ -3,6 +3,8 @@ mod chat;
 mod config;
 mod db;
 mod http;
+mod providers;
+mod services;
 
 use config::AppConfig;
 
