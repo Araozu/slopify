@@ -433,5 +433,520 @@ export const MOCK_CHATS: ChatThread[] = [
 				timestamp: '11:36 AM'
 			}
 		]
+	},
+	{
+		id: '11',
+		title: 'The 10-step skincare journey',
+		lastMessage: 'Retinol is not for the faint of heart.',
+		messages: [
+			{
+				id: 'm57',
+				role: 'user',
+				content: 'I want to upgrade my skincare routine. Currently just using soap on my face 😭',
+				timestamp: '08:00 AM'
+			},
+			{
+				id: 'm58',
+				role: 'assistant',
+				content:
+					"SOAP?? Bestie that's like using dish soap to wash your hair. We need to talk. Immediately. 🚨",
+				timestamp: '08:01 AM'
+			},
+			{
+				id: 'm59',
+				role: 'user',
+				content: 'It gets the job done tho??',
+				timestamp: '08:02 AM'
+			},
+			{
+				id: 'm60',
+				role: 'assistant',
+				content:
+					"It's stripping ALL your natural oils babe. Your skin is screaming for help. Let's build you a proper routine step by step, OK? 💆‍♀️",
+				timestamp: '08:03 AM'
+			},
+			{
+				id: 'm61',
+				role: 'user',
+				content: "OK I'm listening...",
+				timestamp: '08:05 AM'
+			},
+			{
+				id: 'm62',
+				role: 'assistant',
+				content:
+					'Step 1: Oil cleanser. Yes OIL. It dissolves all the gunk and makeup. Think of it like demelanizing your face.',
+				timestamp: '08:06 AM'
+			},
+			{
+				id: 'm63',
+				role: 'user',
+				content: "Won't that make me more oily??",
+				timestamp: '08:07 AM'
+			},
+			{
+				id: 'm64',
+				role: 'assistant',
+				content:
+					"Opposite effect bestie! It balanced your skin's moisture barrier. Like how hydrating your code actually prevents more bugs. Counterintuitive but TRUE. ✨",
+				timestamp: '08:08 AM'
+			},
+			{
+				id: 'm65',
+				role: 'user',
+				content: "What's step 2?",
+				timestamp: '08:10 AM'
+			},
+			{
+				id: 'm66',
+				role: 'assistant',
+				content:
+					"Water-based cleanser! Double cleanse is the move. First oil, then water-based. It's like clearing your cache twice. Nothing gets stuck. 🧹",
+				timestamp: '08:11 AM'
+			},
+			{
+				id: 'm67',
+				role: 'user',
+				content: "I've heard about toners? Do I need one?",
+				timestamp: '08:15 AM'
+			},
+			{
+				id: 'm68',
+				role: 'assistant',
+				content:
+					"YES. Toner is like the primer of skincare. It preps your skin to absorb all the good stuff coming next. Don't skip it!",
+				timestamp: '08:16 AM'
+			},
+			{
+				id: 'm69',
+				role: 'user',
+				content: 'What about serums? There are so many options??',
+				timestamp: '08:20 AM'
+			},
+			{
+				id: 'm70',
+				role: 'assistant',
+				content:
+					"OK so serums are the active ingredients. Vitamin C for brightening, hyaluronic acid for hydration, niacinamide for pores. It's like picking the right utility function. Choose ONE to start.",
+				timestamp: '08:21 AM'
+			},
+			{
+				id: 'm71',
+				role: 'user',
+				content: 'I have melasma spots. What should I do?',
+				timestamp: '08:25 AM'
+			},
+			{
+				id: 'm72',
+				role: 'assistant',
+				content:
+					'Vitamin C serum is your bestie for that! Also SPF 50 like your life depends on it. Sun exposure makes melasma SO much worse. ☀️',
+				timestamp: '08:26 AM'
+			},
+			{
+				id: 'm73',
+				role: 'user',
+				content: 'Speaking of SPF, any recommendations?',
+				timestamp: '08:30 AM'
+			},
+			{
+				id: 'm74',
+				role: 'assistant',
+				content:
+					"mineral SPF preferably. Think zinc oxide or titanium dioxide. It's physical blocking vs chemical which can irritate sensitive skin. Like the difference between explicit typing and implicit any. 🧱",
+				timestamp: '08:31 AM'
+			},
+			{
+				id: 'm75',
+				role: 'user',
+				content: 'Is retinol actually worth it? Everyone talks about it',
+				timestamp: '08:35 AM'
+			},
+			{
+				id: 'm76',
+				role: 'assistant',
+				content:
+					"Retinol is the GOLD standard for anti-aging. It cell turnover, reduces wrinkles, clears acne. But start SLOW. Twice a week max. It's powerful stuff.",
+				timestamp: '08:36 AM'
+			},
+			{
+				id: 'm77',
+				role: 'user',
+				content: 'What happens if I use it every day?',
+				timestamp: '08:40 AM'
+			},
+			{
+				id: 'm78',
+				role: 'assistant',
+				content:
+					"Your skin will PURGE. Red, peeling, breakouts. It's the retinization period. Think of it like when you refactor a whole system at once—chaos before clarity. 📈",
+				timestamp: '08:41 AM'
+			},
+			{
+				id: 'm79',
+				role: 'user',
+				content: 'Moisturizer though? Do I need that even if I have oily skin?',
+				timestamp: '08:45 AM'
+			},
+			{
+				id: 'm80',
+				role: 'assistant',
+				content:
+					'ESPECIALLY if you have oily skin! When your skin is dry it overcompensates with MORE oil. Moisture tells your skin "we\'re good, no need to panic produce sebum."',
+				timestamp: '08:46 AM'
+			},
+			{
+				id: 'm81',
+				role: 'user',
+				content: 'Retinol is not for the faint of heart.',
+				timestamp: '08:50 AM'
+			},
+			{
+				id: 'm82',
+				role: 'assistant',
+				content:
+					"You get it now! Start gentle, listen to your skin, and SPF EVERY SINGLE DAY even when it's cloudy. That's the real secret. ☁️",
+				timestamp: '08:51 AM'
+			}
+		]
+	},
+	{
+		id: '12',
+		title: 'Closet full, nothing to wear',
+		lastMessage: 'Capsule wardrobe sounds kind of chic actually.',
+		messages: [
+			{
+				id: 'm83',
+				role: 'user',
+				content: 'I have a full closet but literally wear the same 3 things. Help? 😭',
+				timestamp: '09:00 AM'
+			},
+			{
+				id: 'm84',
+				role: 'assistant',
+				content:
+					"Classic capsule wardrobe moment. It's like having 47 npm packages but only using 3. Time to Marie Kondo that closet, bestie! 👗",
+				timestamp: '09:01 AM'
+			},
+			{
+				id: 'm85',
+				role: 'user',
+				content: 'What IS a capsule wardrobe exactly?',
+				timestamp: '09:05 AM'
+			},
+			{
+				id: 'm86',
+				role: 'assistant',
+				content:
+					'A limited collection of versatile pieces that all work together. Like a well-organized component library—everything pairs with everything. 🧩',
+				timestamp: '09:06 AM'
+			},
+			{
+				id: 'm87',
+				role: 'user',
+				content: 'How many pieces do I actually need?',
+				timestamp: '09:10 AM'
+			},
+			{
+				id: 'm88',
+				role: 'assistant',
+				content:
+					"30-40 pieces is the sweet spot for most people. Including shoes! Think of it like keeping your bundle size small—only what's essential. 🎯",
+				timestamp: '09:11 AM'
+			},
+			{
+				id: 'm89',
+				role: 'user',
+				content: 'Where do I even start decluttering?',
+				timestamp: '09:15 AM'
+			},
+			{
+				id: 'm90',
+				role: 'assistant',
+				content:
+					'Pull EVERYTHING out. Yes, the whole closet. Put it on your bed. Then ask yourself: have I worn this in 6 months? Does it fit? Does it bring joy? If no to any—bye bestie! 👋',
+				timestamp: '09:16 AM'
+			},
+			{
+				id: 'm91',
+				role: 'user',
+				content: 'But what if I need it for a specific occasion?',
+				timestamp: '09:20 AM'
+			},
+			{
+				id: 'm92',
+				role: 'assistant',
+				content:
+					"One formal dress. One nice blouse. One pair of heels. You don't need 12 formal dresses for 12 years of galas. Rent for special events! 💃",
+				timestamp: '09:21 AM'
+			},
+			{
+				id: 'm93',
+				role: 'user',
+				content: 'What about fast fashion? Those prices are amazing...',
+				timestamp: '09:25 AM'
+			},
+			{
+				id: 'm94',
+				role: 'assistant',
+				content:
+					"I KNOW the prices are giving but the quality is giving paper bag. It falls apart after 2 washes. It's like buying the cheapest mechanical keyboard—fun for 2 weeks then you're mad. ⌨️",
+				timestamp: '09:26 AM'
+			},
+			{
+				id: 'm95',
+				role: 'user',
+				content: 'So invest in quality basics?',
+				timestamp: '09:30 AM'
+			},
+			{
+				id: 'm96',
+				role: 'assistant',
+				content:
+					'Exactly! A good white tee, well-fitted jeans, neutral blazer. Those are your utility functions. They go with EVERYTHING. 🛍️',
+				timestamp: '09:31 AM'
+			},
+			{
+				id: 'm97',
+				role: 'user',
+				content: 'What about colors? I always default to black...',
+				timestamp: '09:35 AM'
+			},
+			{
+				id: 'm98',
+				role: 'assistant',
+				content:
+					"Black is fine but SO boring. Try a capsule in neutrals—cream, camel, olive, navy. Everything mixes and matches. It's like having a consistent design system. 🎨",
+				timestamp: '09:36 AM'
+			},
+			{
+				id: 'm99',
+				role: 'user',
+				content: "OLIVE?? That's not even a real color bestie 😂",
+				timestamp: '09:40 AM'
+			},
+			{
+				id: 'm100',
+				role: 'assistant',
+				content:
+					"It IS a real color and it's CHIC. Army green vibes are giving main character energy. Trust me on this one. It goes with everything including black which is illegal but works. 🤯",
+				timestamp: '09:41 AM'
+			},
+			{
+				id: 'm101',
+				role: 'user',
+				content: 'What shoes should I invest in?',
+				timestamp: '09:45 AM'
+			},
+			{
+				id: 'm102',
+				role: 'assistant',
+				content:
+					"One white sneaker, one black ankle boot, one nude heel. That's the footwear holy trinity. They go with 90% of outfits. Just like primary colors in design. 👠",
+				timestamp: '09:46 AM'
+			},
+			{
+				id: 'm103',
+				role: 'user',
+				content: 'Accessories though? I feel like I need more...',
+				timestamp: '09:50 AM'
+			},
+			{
+				id: 'm104',
+				role: 'assistant',
+				content:
+					'A silk scarf, one statement necklace, simple gold hoops. THATS IT. Accessories are like emoji in texts—sparingly or it gets chaotic. Less is more babe! ✨',
+				timestamp: '09:51 AM'
+			},
+			{
+				id: 'm105',
+				role: 'user',
+				content: 'Capsule wardrobe sounds kind of chic actually.',
+				timestamp: '09:55 AM'
+			},
+			{
+				id: 'm106',
+				role: 'assistant',
+				content:
+					'It IS chic! And practical! No more morning outfit panic. Just grab and go. Your future self will thank you. No decision fatigue = better vibes. 🌅',
+				timestamp: '09:56 AM'
+			}
+		]
+	},
+	{
+		id: '13',
+		title: 'Gloss vs the world',
+		lastMessage: 'Gloss is having a full comeback arc.',
+		messages: [
+			{
+				id: 'm107',
+				role: 'user',
+				content: 'Lip gloss is back?? I thought we were over that sticky era.',
+				timestamp: '12:00 PM'
+			},
+			{
+				id: 'm108',
+				role: 'assistant',
+				content:
+					"BESTIE gloss never left. It was just on a villain arc. Now it's back and better than ever. The formulas are SO much better now. Less sticky, more juicy! 💋",
+				timestamp: '12:01 PM'
+			},
+			{
+				id: 'm109',
+				role: 'user',
+				content: "But isn't lip gloss just... sticky and old lady?",
+				timestamp: '12:05 PM'
+			},
+			{
+				id: 'm110',
+				role: 'assistant',
+				content:
+					"That's the OLD gloss. Think Fenty Gloss Bomb. That stuff is ENDORSED. It's plush, not sticky, and gives the most beautiful wet-look shine. Main character energy only. ✨",
+				timestamp: '12:06 PM'
+			},
+			{
+				id: 'm111',
+				role: 'user',
+				content: 'What about lipstick? I feel like that\'s more "put together"',
+				timestamp: '12:10 PM'
+			},
+			{
+				id: 'm112',
+				role: 'assistant',
+				content:
+					"Lipstick is giving structured power meeting energy. It's the TypeScript of lips—defined, precise, sometimes intimidating. But gloss? Gloss is playful, approachable, like vanilla JavaScript. 🖤",
+				timestamp: '12:11 PM'
+			},
+			{
+				id: 'm113',
+				role: 'user',
+				content: 'What about lip oils? Are those different?',
+				timestamp: '12:15 PM'
+			},
+			{
+				id: 'm114',
+				role: 'assistant',
+				content:
+					"Lip oils are gloss's softer younger sister! They're sheer, super glossy, and super hydrating. It's like the difference between a highlighter and a blinding highlight. Both glow, different vibes. 💫",
+				timestamp: '12:16 PM'
+			},
+			{
+				id: 'm115',
+				role: 'user',
+				content: 'And lip stains? My friend swears by them',
+				timestamp: '12:20 PM'
+			},
+			{
+				id: 'm116',
+				role: 'assistant',
+				content:
+					'Lip stains are the minimalist of the lip world. They\'re like that "my lips but better" look. Long-lasting, natural, low maintenance. It\'s the state management approach to lips. Just set it and forget it. 👄',
+				timestamp: '12:21 PM'
+			},
+			{
+				id: 'm117',
+				role: 'user',
+				content: "But don't stains dry out your lips?",
+				timestamp: '12:25 PM'
+			},
+			{
+				id: 'm118',
+				role: 'assistant',
+				content:
+					"SOME do. The alcohol-based ones can be drying. But the newer gel or oil-based stains? Chef's kiss. Hydrating AND long-wear. It's like finding the perfect hydration-to-matte balance in a foundation. �基底",
+				timestamp: '12:26 PM'
+			},
+			{
+				id: 'm119',
+				role: 'user',
+				content: "What's the deal with lip liners then?",
+				timestamp: '12:30 PM'
+			},
+			{
+				id: 'm120',
+				role: 'assistant',
+				content:
+					"Lip liner is the outline of your lip look. It's like component boundaries—keeps everything in place. Overline if you want more volume, natural line if you're going for subtle. 🎨",
+				timestamp: '12:31 PM'
+			},
+			{
+				id: 'm121',
+				role: 'user',
+				content: 'Do I need to match my liner to my gloss or lipstick?',
+				timestamp: '12:35 PM'
+			},
+			{
+				id: 'm122',
+				role: 'assistant',
+				content:
+					"Rule of thumb: liner slightly darker than your lip product. It defines without looking obvious. Unless you're going for that Y2K ombre lip vibe which is also having a moment. 🌪️",
+				timestamp: '12:36 PM'
+			},
+			{
+				id: 'm123',
+				role: 'user',
+				content: 'Wait ombre lips are back too??',
+				timestamp: '12:40 PM'
+			},
+			{
+				id: 'm124',
+				role: 'assistant',
+				content:
+					"YES. Everything from the early 2000s is back. Ombre, frosty lips, even lip glaciers. It's giving nostalgic callback energy. Like when frameworks circle back to being popular. 🔄",
+				timestamp: '12:41 PM'
+			},
+			{
+				id: 'm125',
+				role: 'user',
+				content: "What's a lip glacier? That sounds cold.",
+				timestamp: '12:45 PM'
+			},
+			{
+				id: 'm126',
+				role: 'assistant',
+				content:
+					'Gloss with icy shimmer or blue tint. Very "ice princess sysadmin". Very cool-toned, very extra, very 2024. Some people are INTO it. I am not one of those people. ❄️',
+				timestamp: '12:46 PM'
+			},
+			{
+				id: 'm127',
+				role: 'user',
+				content: "So what's your daily lip look?",
+				timestamp: '12:50 PM'
+			},
+			{
+				id: 'm128',
+				role: 'assistant',
+				content:
+					"TBH? Lip oil or gloss on days I want to look alive. If I'm going to a meeting I'll do a bullet lipstick—classic red or dusty nude. It's like choosing dark mode or light mode. Both valid, depends on the vibe. 🌗",
+				timestamp: '12:51 PM'
+			},
+			{
+				id: 'm129',
+				role: 'user',
+				content: 'What about lip plumping glosses? Do those actually work?',
+				timestamp: '12:55 PM'
+			},
+			{
+				id: 'm130',
+				role: 'assistant',
+				content:
+					"The tingle effect? It's temporary swelling from irritants like menthol or capsicum. It works short-term but can be drying. Like a quick caffeine fix vs proper rest. Know what you're signing up for! ☕",
+				timestamp: '12:56 PM'
+			},
+			{
+				id: 'm131',
+				role: 'user',
+				content: 'Gloss is having a full comeback arc.',
+				timestamp: '01:00 PM'
+			},
+			{
+				id: 'm132',
+				role: 'assistant',
+				content:
+					"It really is! From glossy skin to glossy lips, it's the texture of the moment. Embrace the shine bestie. Your lips will thank you for the moisture and the glow. ✨💋✨",
+				timestamp: '01:01 PM'
+			}
+		]
 	}
 ];

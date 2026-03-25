@@ -12,13 +12,25 @@
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { cn } from '$lib/utils';
 	import { MOCK_CHATS } from '$lib/mock-data';
-	import { untrack } from 'svelte';
+	import { tick } from 'svelte';
 
 	let activeChatId = $state(MOCK_CHATS[0].id);
 	let activeChat = $derived(MOCK_CHATS.find((c) => c.id === activeChatId) || MOCK_CHATS[0]);
 	let messages = $derived(activeChat.messages);
+	let messageCount = $derived(messages.length);
 
 	let viewportRef: HTMLElement | null = $state(null);
+
+	function scrollToLatest(behavior: ScrollBehavior = 'auto') {
+		if (!viewportRef) {
+			return;
+		}
+
+		viewportRef.scrollTo({
+			top: viewportRef.scrollHeight,
+			behavior
+		});
+	}
 
 	function scrollToMessage(id: string) {
 		const element = document.getElementById(id);
@@ -29,18 +41,25 @@
 
 	function setActiveChat(id: string) {
 		activeChatId = id;
-		// Reset scroll when switching chats
-		if (viewportRef) {
-			untrack(() => {
-				viewportRef!.scrollTo({ top: 0 });
-			});
-		}
 	}
+
+	$effect(() => {
+		const currentChatId = activeChatId;
+		const currentMessageCount = messageCount;
+
+		void tick().then(() => {
+			if (!currentChatId || currentMessageCount < 0) {
+				return;
+			}
+
+			scrollToLatest();
+		});
+	});
 </script>
 
-<div class="flex h-[calc(100vh-2rem)] w-full overflow-hidden bg-background">
+<div class="flex h-[calc(100vh-2rem)] min-h-0 w-full overflow-hidden bg-background">
 	<!-- Left Sidebar: Recent Chats -->
-	<aside class="flex w-64 flex-col border-r bg-muted/30 backdrop-blur-md">
+	<aside class="flex min-h-0 w-64 flex-col border-r bg-muted/30 backdrop-blur-md">
 		<div class="flex items-center justify-between p-4">
 			<h2 class="text-[10px] font-black tracking-widest text-foreground/40 uppercase">
 				Recent Slops
@@ -83,7 +102,7 @@
 	</aside>
 
 	<!-- Center: Chat Messages -->
-	<main class="flex flex-1 flex-col bg-background/50 backdrop-blur-sm">
+	<main class="flex min-h-0 flex-1 flex-col bg-background/50 backdrop-blur-sm">
 		<header class="flex h-12 items-center border-b bg-background/20 px-6 backdrop-blur-xl">
 			<div class="flex items-center gap-2">
 				<div
@@ -95,53 +114,55 @@
 			</div>
 		</header>
 
-		<ScrollArea.Root class="flex-1" bind:viewportRef>
-			<div class="mx-auto max-w-3xl space-y-10 px-6 py-10">
-				{#each messages as message (message.id)}
-					<div
-						id={message.id}
-						class={cn(
-							'flex w-full animate-in gap-5 transition-all duration-500 fade-in slide-in-from-bottom-2',
-							message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-						)}
-					>
-						<Avatar.Root class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background">
-							<Avatar.Fallback
-								class={message.role === 'assistant'
-									? 'border border-primary/20 bg-primary/10 text-primary'
-									: 'border border-border bg-secondary text-secondary-foreground'}
-							>
-								{#if message.role === 'assistant'}
-									<RobotIcon size={18} />
-								{:else}
-									<UserIcon size={18} />
-								{/if}
-							</Avatar.Fallback>
-						</Avatar.Root>
+		<ScrollArea.Root class="min-h-0 flex-1" bind:viewportRef>
+			<div class="flex min-h-full flex-col justify-end">
+				<div class="mx-auto w-full max-w-3xl space-y-10 px-6 py-10">
+					{#each messages as message (message.id)}
 						<div
+							id={message.id}
 							class={cn(
-								'flex max-w-[85%] flex-col gap-2.5',
-								message.role === 'user' ? 'items-end' : 'items-start'
+								'flex w-full animate-in gap-5 transition-all duration-500 fade-in slide-in-from-bottom-2',
+								message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
 							)}
 						>
+							<Avatar.Root class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background">
+								<Avatar.Fallback
+									class={message.role === 'assistant'
+										? 'border border-primary/20 bg-primary/10 text-primary'
+										: 'border border-border bg-secondary text-secondary-foreground'}
+								>
+									{#if message.role === 'assistant'}
+										<RobotIcon size={18} />
+									{:else}
+										<UserIcon size={18} />
+									{/if}
+								</Avatar.Fallback>
+							</Avatar.Root>
 							<div
 								class={cn(
-									'rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1',
-									message.role === 'user'
-										? 'bg-primary text-primary-foreground ring-primary/20'
-										: 'bg-background/80 ring-border backdrop-blur-md'
+									'flex max-w-[85%] flex-col gap-2.5',
+									message.role === 'user' ? 'items-end' : 'items-start'
 								)}
 							>
-								{message.content}
+								<div
+									class={cn(
+										'rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1',
+										message.role === 'user'
+											? 'bg-primary text-primary-foreground ring-primary/20'
+											: 'bg-background/80 ring-border backdrop-blur-md'
+									)}
+								>
+									{message.content}
+								</div>
+								<span
+									class="px-1 text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
+								>
+									{message.timestamp}
+								</span>
 							</div>
-							<span
-								class="px-1 text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
-							>
-								{message.timestamp}
-							</span>
 						</div>
-					</div>
-				{/each}
+					{/each}
+				</div>
 			</div>
 		</ScrollArea.Root>
 
@@ -170,7 +191,7 @@
 	</main>
 
 	<!-- Right Sidebar: TOC/Message List -->
-	<aside class="hidden w-60 flex-col border-l bg-muted/20 backdrop-blur-md lg:flex">
+	<aside class="hidden min-h-0 w-60 flex-col border-l bg-muted/20 backdrop-blur-md lg:flex">
 		<div class="p-4">
 			<h2 class="text-[10px] font-black tracking-widest text-foreground/40 uppercase">
 				Message Log
