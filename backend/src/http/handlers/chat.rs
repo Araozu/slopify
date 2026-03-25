@@ -78,7 +78,7 @@ impl From<ChatServiceError> for ApiError {
                 message: value.to_string(),
             },
             ChatServiceError::MissingApiKey => Self {
-                status: StatusCode::BAD_REQUEST,
+                status: StatusCode::UNAUTHORIZED,
                 message: value.to_string(),
             },
             ChatServiceError::Provider(error) => Self {

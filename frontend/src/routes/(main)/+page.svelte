@@ -75,7 +75,7 @@
 	}
 
 	async function sendMessage() {
-		const chatId = activeChatId;
+		const requestChatId = activeChatId;
 		const prompt = draft.trim();
 		const trimmedApiKey = apiKey.trim();
 		const selectedModel = model.trim();
@@ -85,7 +85,7 @@
 		}
 
 		const nextMessages = [...messages, createMessage('user', prompt)];
-		updateActiveChat(chatId, nextMessages);
+		updateActiveChat(requestChatId, nextMessages);
 		draft = '';
 		isSending = true;
 
@@ -105,10 +105,16 @@
 				throw new Error(payload.error ?? 'The model returned an empty response.');
 			}
 
-			updateActiveChat(chatId, [...nextMessages, createMessage('assistant', payload.content)]);
+			updateActiveChat(requestChatId, [
+				...nextMessages,
+				createMessage('assistant', payload.content)
+			]);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to send prompt.';
-			updateActiveChat(chatId, [...nextMessages, createMessage('assistant', `Error: ${message}`)]);
+			updateActiveChat(requestChatId, [
+				...nextMessages,
+				createMessage('assistant', `Error: ${message}`)
+			]);
 		} finally {
 			isSending = false;
 		}
@@ -254,7 +260,7 @@
 					class="h-8 min-w-0 flex-1 border-border/60 bg-background/70 text-xs"
 					disabled={isSending}
 				/>
-				<span class="text-[10px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
+				<span class="text-xs font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
 					>api key</span
 				>
 				<Input
@@ -263,7 +269,7 @@
 					class="h-8 max-w-56 border-border/60 bg-background/70 text-xs"
 					disabled={isSending}
 				/>
-				<span class="text-[10px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
+				<span class="text-xs font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
 					>model</span
 				>
 			</div>

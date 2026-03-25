@@ -54,9 +54,11 @@ pub async fn complete_prompt(
     }
 
     let api_key = authorization
-        .and_then(|value| value.strip_prefix("Bearer "))
-        .or(authorization.and_then(|value| value.strip_prefix("bearer ")))
         .map(str::trim)
+        .and_then(|value| {
+            let (scheme, token) = value.split_once(' ')?;
+            scheme.eq_ignore_ascii_case("Bearer").then_some(token.trim())
+        })
         .filter(|value| !value.is_empty())
         .ok_or(ChatServiceError::MissingApiKey)?;
 
