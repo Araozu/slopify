@@ -3,9 +3,12 @@ use axum::{
     routing::{get, post},
 };
 
-use crate::http::handlers::{chat, health, streams};
+use crate::{
+    http::handlers::{chat, health, streams},
+    state::AppState,
+};
 
-pub fn router() -> Router {
+pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health", get(health::health_check))
         .route(

@@ -5,6 +5,9 @@ import { sveltePhosphorOptimize } from 'phosphor-svelte/vite';
 
 export default defineConfig({
 	server: {
+		proxy: {
+			'/api': 'http://127.0.0.1:4000'
+		},
 		port: 5177
 	},
 	lint: { options: { typeAware: true, typeCheck: true } },

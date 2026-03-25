@@ -1,12 +1,15 @@
 use axum::{
+    extract::State,
     Json,
     http::{HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
 };
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::services::chat_service::{self, ChatServiceError};
+use crate::{
+    services::chat_service::{self, ChatServiceError},
+    state::AppState,
+};
 
 const ACCESS_CONTROL_ALLOW_HEADERS: &str = "content-type";
 const ACCESS_CONTROL_ALLOW_METHODS: &str = "POST, OPTIONS";
@@ -26,10 +29,11 @@ pub struct PromptResponse {
     pub finish_reason: Option<String>,
 }
 
-pub async fn complete_prompt(Json(payload): Json<PromptRequest>) -> Response {
-    let client = Client::new();
-
-    match chat_service::complete_prompt(&client, payload.prompt, payload.model).await {
+pub async fn complete_prompt(
+    State(state): State<AppState>,
+    Json(payload): Json<PromptRequest>,
+) -> Response {
+    match chat_service::complete_prompt(&state.http_client, payload.prompt, payload.model).await {
         Ok(completion) => with_cors(
             StatusCode::OK,
             Json(PromptResponse {

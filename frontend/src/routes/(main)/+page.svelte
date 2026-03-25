@@ -15,7 +15,7 @@
 	import { cn } from '$lib/utils';
 	import { tick } from 'svelte';
 
-	const BACKEND_CHAT_ENDPOINT = 'http://127.0.0.1:4000/api/v1/chat/completions';
+	const BACKEND_CHAT_ENDPOINT = '/api/v1/chat/completions';
 	const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 	const INITIAL_CHAT_ID = MOCK_CHATS[0].id;
 

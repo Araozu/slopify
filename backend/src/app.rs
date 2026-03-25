@@ -1,7 +1,10 @@
 use axum::Router;
+use reqwest::Client;
 
-use crate::http;
+use crate::state::AppState;
 
 pub fn build_router() -> Router {
-    Router::new().merge(http::routes::router())
+    crate::http::routes::router().with_state(AppState {
+        http_client: Client::new(),
+    })
 }
