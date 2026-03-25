@@ -1,0 +1,23 @@
+---
+- name: Setup target server
+  become: false
+  hosts: servers
+  vars:
+    remote_folder: '{{ _remote_folder }}'
+    project_services: "{{ _project_services.split(',') }}"
+
+  tasks:
+    - name: Start docker compose
+      community.docker.docker_compose_v2:
+        project_src: '{{ remote_folder }}'
+        files: >
+          {{
+            project_services | map('regex_replace', '^(.*)$', 'docker-compose.\1.yml')
+          }}
+        env_files: >
+          {{
+            project_services | map('regex_replace', '^(.*)$', '.version.\1') | list
+          }}
+        wait: true
+        wait_timeout: 60
+

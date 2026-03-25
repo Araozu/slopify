@@ -1,0 +1,6 @@
+servers:
+  hosts:
+    helsinki-ubuntu-01:
+      ansible_host: "{{ lookup('ansible.builtin.env', 'ANSIBLE_HOST') | mandatory }}"
+      ansible_user: "{{ lookup('ansible.builtin.env', 'ANSIBLE_USER') | mandatory }}"
+

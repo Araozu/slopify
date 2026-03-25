@@ -1,0 +1,44 @@
+services:
+  {{ project_name }}-{{ project_stage }}-full:
+    image: ${{ project_name | upper }}_FULL_REGISTRY_URL:${{ project_name | upper }}_FULL_VERSION
+    container_name: {{ project_name }}-{{ project_stage }}-full
+    restart: unless-stopped
+    environment:
+      TZ: America/Lima
+    networks:
+      - proxy
+      - {{ project_name }}-{{ project_stage }}-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}-full.rule=Host(`slopify.araoz.dev`)"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}-full.entrypoints=websecure"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}-full.tls=true"
+      - "traefik.http.routers.{{ project_name }}-{{ project_stage }}-full.tls.certresolver=http"
+      - "traefik.http.services.{{ project_name }}-{{ project_stage }}-full.loadbalancer.server.port=4000"
+
+  {{ project_name }}-{{ project_stage }}-db:
+    image: postgres:17
+    container_name: {{ project_name }}-{{ project_stage }}-db
+    restart: unless-stopped
+    shm_size: 128mb
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    environment:
+      - TZ=America/Lima
+    env_file:
+      - ./.env.database
+    networks:
+      - {{ project_name }}-{{ project_stage }}-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 2
+      start_period: 5s
+
+networks:
+  proxy:
+    external: true
+  {{ project_name }}-{{ project_stage }}-network:
+    driver: bridge
+

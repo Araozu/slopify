@@ -1,0 +1,85 @@
+pipeline {
+    environment {
+        BUILD_REF = sh(script: "echo -n '${BUILD_TAG}' | sha256sum | cut -c1-12", returnStdout: true).trim()
+
+        PROJECT_NAME      = "slopify"
+        PROJECT_SERVICE   = "full"
+        PROJECT_STAGE     = "production"
+
+        ANSIBLE_USER      = "docker_admin"
+        ANSIBLE_HOST      = "localhost"
+        REMOTE_FOLDER     = "/home/docker_admin/${PROJECT_NAME}-${PROJECT_STAGE}"
+
+        REGISTRY_URL      = "docker.io"
+        REGISTRY_USER     = "araozu"
+        PROJECT_TRIPLET   = "${PROJECT_NAME}-${PROJECT_SERVICE}-${PROJECT_STAGE}"
+        FULL_REGISTRY_URL = "${REGISTRY_URL}/${REGISTRY_USER}/${PROJECT_TRIPLET}"
+
+        SSH_CRED          = "ssh-id_docker_admin_hetzner"
+        PROJECT_SERVICES  = "full"
+    }
+    agent {
+        node {
+            label "fernando-helsinki-01"
+        }
+    }
+    stages {
+        stage("Build docker") {
+            steps {
+                script {
+                    docker.build("${FULL_REGISTRY_URL}:${BUILD_REF}", "-f +devops/docker/Dockerfile .")
+                }
+            }
+        }
+        stage("Setup deploy target") {
+            steps {
+                dir ("+devops/+${PROJECT_STAGE}") {
+                    ansiblePlaybook(
+                        credentialsId: SSH_CRED,
+                        inventory: "inventory.yml",
+                        playbook: "../ansible/setup_target.yml",
+                        extraVars: [
+                            _remote_folder: REMOTE_FOLDER,
+                            _project_stage: PROJECT_STAGE,
+                            _project_name: PROJECT_NAME,
+                        ],
+                    )
+                }
+            }
+        }
+        stage("Setup deploy files") {
+            steps {
+                dir ("+devops/+${PROJECT_STAGE}") {
+                    ansiblePlaybook(
+                        credentialsId: SSH_CRED,
+                        inventory: "inventory.yml",
+                        playbook: "../ansible/setup_files.yml",
+                        extraVars: [
+                            _remote_folder: REMOTE_FOLDER,
+                            _project_service: PROJECT_SERVICE,
+                            _project_stage: PROJECT_STAGE,
+                            _project_name: PROJECT_NAME,
+                            _image_tag: BUILD_REF,
+                            _full_registry_url: FULL_REGISTRY_URL,
+                        ],
+                    )
+                }
+            }
+        }
+        stage("Up services") {
+            steps {
+                dir ("+devops/+${PROJECT_STAGE}") {
+                    ansiblePlaybook(
+                        credentialsId: SSH_CRED,
+                        inventory: "inventory.yml",
+                        playbook: "../ansible/start_service.yml",
+                        extraVars: [
+                            _remote_folder: REMOTE_FOLDER,
+                            _project_services: PROJECT_SERVICES,
+                        ],
+                    )
+                }
+            }
+        }
+    }
+}
