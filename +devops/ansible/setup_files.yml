@@ -9,6 +9,12 @@
     project_name:  '{{ _project_name  }}'
     image_tag: '{{ _image_tag }}'
     full_registry_url: '{{ _full_registry_url }}'
+    #
+    # -- generated --
+    #
+    db_host_name: '{{ project_name }}-{{ project_stage }}-db'
+    db_name: '{{ project_name }}-{{ project_stage }}-db'
+    db_username: '{{ project_name }}_{{ project_stage }}_user'
 
   tasks:
     - name: Copy docker compose file
