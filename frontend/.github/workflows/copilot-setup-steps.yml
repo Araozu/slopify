@@ -20,6 +20,9 @@ jobs:
           node-version: '24'
           cache: true
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Checkout code
         uses: actions/checkout@v5
 
