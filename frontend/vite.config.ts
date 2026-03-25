@@ -4,6 +4,11 @@ import { defineConfig } from 'vite-plus';
 import { sveltePhosphorOptimize } from 'phosphor-svelte/vite';
 
 export default defineConfig({
+	/*
+	staged: {
+		'*': 'vp check --fix'
+	},
+	*/
 	server: {
 		proxy: {
 			'/api': 'http://127.0.0.1:4000'

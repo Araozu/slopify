@@ -1,7 +1,7 @@
 use axum::{
-    http::{Method, header},
-    Router,
+    http::{header, Method},
     routing::{get, post},
+    Router,
 };
 use tower_http::cors::{Any, CorsLayer};
 
@@ -13,13 +13,18 @@ use crate::{
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health", get(health::health_check))
+        .nest("/api", api_router())
+}
+
+fn api_router() -> Router<AppState> {
+    Router::new()
         .route(
-            "/api/v1/chat/completions",
+            "/v1/chat/completions",
             post(chat::complete_prompt)
                 .options(chat::chat_options)
                 .layer(chat_cors_layer()),
         )
-        .route("/api/v1/streams/hello", get(streams::hello_stream))
+        .route("/v1/streams/hello", get(streams::hello_stream))
 }
 
 fn chat_cors_layer() -> CorsLayer {

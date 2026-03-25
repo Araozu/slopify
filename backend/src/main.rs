@@ -21,7 +21,7 @@ async fn main() {
 
     println!("backend listening on http://{}", config.bind_address());
 
-    axum::serve(listener, app::build_router())
+    axum::serve(listener, app::build_router(&config))
         .await
         .expect("backend server exited unexpectedly");
 }
