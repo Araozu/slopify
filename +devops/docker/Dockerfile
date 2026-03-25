@@ -8,7 +8,7 @@ COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --no-frozen-lockfile
 
 COPY frontend/ ./
-RUN pnpm exec vp build
+RUN pnpm run build
 
 
 FROM rust:1.93-bookworm AS backend-builder
