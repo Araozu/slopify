@@ -3,6 +3,7 @@
 ## Goals
 
 - Keep HTTP concerns separate from chat-domain contracts.
+- Keep transport adapters thin so future Tauri integration can reuse the same chat/application logic.
 - Make provider adapters easy to add without leaking vendor-specific payloads everywhere.
 - Normalize streamed output into a stable client-facing event shape.
 
@@ -18,6 +19,7 @@ backend/
    |- main.rs
    |- chat/
    |  |- contracts.rs
+   |  |- streams.rs
    |  `- mod.rs
    `- http/
       |- mod.rs
@@ -37,16 +39,23 @@ backend/
 - `src/config.rs`
   - Holds environment-backed runtime config.
 - `src/http/`
-  - HTTP-only concerns: routes, handlers, transport-specific responses like SSE.
+  - HTTP-only concerns: routes, handlers, and transport-specific responses like SSE.
 - `src/chat/`
-  - Client-facing chat contracts and future provider-agnostic message/event types.
+  - Client-facing chat contracts and transport-agnostic chat streaming/message logic.
+
+## Transport Boundary
+
+- `src/chat/streams.rs` owns event production for the demo stream.
+- `src/http/handlers/streams.rs` only maps shared chat events into SSE frames.
+- This split is intentional so a future Tauri desktop app can consume the same domain/application layer without Axum or SSE types leaking inward.
+- If WebSockets are added later, they should serialize the same `ClientChatEvent` values through a separate transport adapter.
 
 ## Existing Endpoints
 
 - `GET /health`
   - Basic JSON health check.
 - `GET /api/v1/streams/hello`
-  - Demo SSE endpoint that emits a started event, two deltas, and a completed event.
+  - Demo SSE endpoint that emits shared chat events through an HTTP/SSE adapter.
 
 ## Suggested Next Folders
 
@@ -60,6 +69,8 @@ src/
 |  |- openai_compatible.rs
 |  |- mod.rs
 |  `- shared.rs
+|- application/
+|  `- chat_streams.rs
 |- services/
 |  `- chat_service.rs
 |- storage/
@@ -87,3 +98,4 @@ The backend currently models a thin, stable chat protocol:
 - Use typed common fields for UI-critical data.
 - Store provider extras under metadata instead of pretending all providers match.
 - Prefer SSE for model output streaming; add WebSockets later only for truly bidirectional flows.
+- Preserve a hard line between transport adapters and reusable chat/application logic so Tauri can slot in later without a rewrite.
