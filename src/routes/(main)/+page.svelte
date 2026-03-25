@@ -61,9 +61,7 @@
 	<!-- Left Sidebar: Recent Chats -->
 	<aside class="flex min-h-0 w-64 flex-col border-r bg-muted/30 backdrop-blur-md">
 		<div class="flex items-center justify-between p-4">
-			<h2 class="text-[10px] font-black text-foreground/40 uppercase">
-				Recent
-			</h2>
+			<h2 class="text-[10px] font-black text-foreground/40 uppercase">Recent</h2>
 			<Button
 				variant="ghost"
 				size="icon-xs"
@@ -125,8 +123,8 @@
 								message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
 							)}
 						>
-							<Avatar.Root 
-								title={message.role === "assistant" ? "Clanker" : "Human"}
+							<Avatar.Root
+								title={message.role === 'assistant' ? 'Clanker' : 'Human'}
 								class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background"
 							>
 								<Avatar.Fallback
@@ -152,7 +150,7 @@
 										'rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1',
 										message.role === 'user'
 											? 'bg-primary text-primary-foreground ring-primary/20'
-											: 'bg-background/80 ring-border backdrop-blur-md font-mono text-xs'
+											: 'bg-background/80 font-mono text-xs ring-border backdrop-blur-md'
 									)}
 								>
 									{message.content}

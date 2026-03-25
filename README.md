@@ -1,42 +1,60 @@
-# sv
+# Slopify
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Yet another AI chat UI, powered by SvelteKit 5 and a "bestie" persona that answers programming questions through skincare and makeup metaphors.
 
-## Creating a project
+## Tech Stack
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Framework**: [SvelteKit](https://kit.svelte.dev/) with Svelte 5 (runes)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) v4 + [shadcn-svelte](https://shadcn-svelte.com/)
+- **Icons**: [Phosphor Icons](https://phosphoricons.com/)
+- **Tooling**: [Vite+](https://vite.plus/) (vp dev, vp build, vp test)
+- **Database**: [Drizzle ORM](https://orm.drizzle.team/) + PostgreSQL
+- **Language**: TypeScript
 
-```sh
-# create a new project
-npx sv create my-app
-```
+## Features
 
-To recreate this project with the same configuration:
+- Three-column chat layout (sidebar, main chat, message log)
+- Dark/light mode with system preference detection
+- Glassmorphism design with backdrop blur
+- Avatar components with role-based styling
+- Scroll area with smooth navigation
 
-```sh
-# recreate this project
-npx sv@0.13.0 create --template minimal --types ts --add prettier eslint tailwindcss="plugins:typography" sveltekit-adapter="adapter:node" drizzle="database:postgresql+postgresql:postgres.js+docker:no" --no-install ./slopify
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
+## Getting Started
 
 ```sh
-npm run build
+# Install dependencies
+vp install
+
+# Start development server
+vp dev
+
+# Build for production
+vp build
+
+# Preview production build
+vp preview
 ```
 
-You can preview the production build with `npm run preview`.
+## Database
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```sh
+# Push schema to database
+pnpm db:push
+
+# Generate migrations
+pnpm db:generate
+
+# Apply migrations
+pnpm db:migrate
+
+# Open Drizzle Studio
+pnpm db:studio
+```
+
+## Environment
+
+Copy `.env.example` to `.env` and configure your database URL:
+
+```env
+DATABASE_URL="postgres://user:password@host:port/db-name"
+```

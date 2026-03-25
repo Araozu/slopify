@@ -1,4 +1,13 @@
-name: "Copilot Setup Steps"
+name: 'Copilot Setup Steps'
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
 
 jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
@@ -7,14 +16,14 @@ jobs:
     permissions:
       contents: read
     steps:
-    # Setup Vite plus
-    - name: Setup Node.js
-      uses: voidzero-dev/setup-vp@v1
-      with:
-        node-version: '24'
-        cache: true
+      # Setup Vite plus
+      - name: Setup Node.js
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: '24'
+          cache: true
 
-    - name: Checkout code
-      uses: actions/checkout@v5
+      - name: Checkout code
+        uses: actions/checkout@v5
 
-    - run: vp install
+      - run: vp install
