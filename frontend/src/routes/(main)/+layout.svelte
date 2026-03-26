@@ -29,12 +29,14 @@
 			>
 				Chat
 			</a>
+			<!-- eslint-disable svelte/no-navigation-without-resolve -->
 			<a
-				href={resolve('/history')}
+				href="/history"
 				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
 			>
 				History
 			</a>
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 		</nav>
 
 		<div class="flex items-center gap-3">

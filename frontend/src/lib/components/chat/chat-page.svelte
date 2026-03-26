@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
@@ -11,13 +12,9 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { threadKeys, threadsQueryOptions } from '$lib/queries/thread-query';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import {
-		createThread,
-		listThreads,
-		loadMessagesByThread,
-		saveMessagesByThread
-	} from '$lib/thread-client';
+	import { createThread, loadMessagesByThread, saveMessagesByThread } from '$lib/thread-client';
 	import type { Message, Thread } from '$lib/types';
 	import { cn } from '$lib/utils';
 	import { onMount, tick } from 'svelte';
@@ -33,23 +30,53 @@
 	const DEFAULT_THREAD_TITLE = 'New thread';
 
 	let { threadId }: Props = $props();
+	const queryClient = useQueryClient();
 
-	let threads = $state<Thread[]>([]);
 	let messagesByThread = $state<MessagesByThread>({});
 	let draft = $state('');
 	let apiKey = $state('');
 	let model = $state(DEFAULT_MODEL);
 	let isSending = $state(false);
-	let isCreatingThread = $state(false);
-	let isBootstrapping = $state(true);
-	let loadError = $state('');
+	let hasRequestedInitialThread = $state(false);
 
 	let viewportRef: HTMLElement | null = $state(null);
 
+	const threadsQuery = createQuery(() => threadsQueryOptions());
+	const createThreadMutation = createMutation(() => ({
+		mutationFn: ({ title }: { title?: string; replaceState?: boolean }) => createThread(title),
+		onSuccess: async (newThread, variables) => {
+			queryClient.setQueryData<Thread[]>(threadKeys.all, (currentThreads) => [
+				newThread,
+				...(currentThreads ?? [])
+			]);
+			updateThreadMessages(newThread.id, []);
+			draft = '';
+			await gotoThread(newThread.id, variables.replaceState ?? false);
+		}
+	}));
+
+	let threads = $derived((threadsQuery.data ?? []) as Thread[]);
 	let activeThread = $derived(threads.find((thread) => thread.id === threadId) ?? null);
 	let messages = $derived(messagesByThread[threadId] ?? []);
 	let threadTitle = $derived(activeThread ? getThreadTitle(activeThread, messages) : 'Thread');
 	let messageCount = $derived(messages.length);
+	let isCreatingThread = $derived(createThreadMutation.isPending);
+	let isBootstrapping = $derived(
+		threadsQuery.isPending || (threads.length === 0 && isCreatingThread)
+	);
+	let loadError = $derived.by(() => {
+		const queryError = threadsQuery.error;
+		if (queryError instanceof Error) {
+			return queryError.message;
+		}
+
+		const mutationError = createThreadMutation.error;
+		if (mutationError instanceof Error) {
+			return mutationError.message;
+		}
+
+		return '';
+	});
 	let chatThreads = $derived(
 		threads.map((thread) => {
 			const threadMessages = messagesByThread[thread.id] ?? [];
@@ -64,7 +91,19 @@
 	);
 
 	onMount(() => {
-		void initializeThreadState();
+		messagesByThread = loadMessagesByThread();
+	});
+
+	$effect(() => {
+		if (
+			threadsQuery.isSuccess &&
+			threads.length === 0 &&
+			!hasRequestedInitialThread &&
+			!isCreatingThread
+		) {
+			hasRequestedInitialThread = true;
+			createThreadMutation.mutate({ replaceState: true });
+		}
 	});
 
 	$effect(() => {
@@ -131,53 +170,12 @@
 		await goto(resolve(`/thread/${id}`), { replaceState });
 	}
 
-	async function initializeThreadState() {
-		isBootstrapping = true;
-		loadError = '';
-		messagesByThread = loadMessagesByThread();
-
-		try {
-			const loadedThreads = await listThreads();
-
-			if (loadedThreads.length === 0) {
-				const firstThread = await createThread();
-				threads = [firstThread];
-				updateThreadMessages(firstThread.id, []);
-				await gotoThread(firstThread.id, true);
-				return;
-			}
-
-			threads = loadedThreads;
-
-			if (!loadedThreads.some((thread) => thread.id === threadId)) {
-				await gotoThread(loadedThreads[0].id, true);
-			}
-		} catch (error) {
-			loadError = error instanceof Error ? error.message : 'Failed to load threads.';
-		} finally {
-			isBootstrapping = false;
-		}
-	}
-
 	async function handleCreateThread() {
-		if (isCreatingThread) {
+		if (isCreatingThread || threadsQuery.isPending) {
 			return;
 		}
 
-		isCreatingThread = true;
-		loadError = '';
-
-		try {
-			const newThread = await createThread();
-			threads = [newThread, ...threads];
-			updateThreadMessages(newThread.id, []);
-			draft = '';
-			await gotoThread(newThread.id);
-		} catch (error) {
-			loadError = error instanceof Error ? error.message : 'Failed to create a thread.';
-		} finally {
-			isCreatingThread = false;
-		}
+		createThreadMutation.mutate({ replaceState: false });
 	}
 
 	async function sendMessage() {

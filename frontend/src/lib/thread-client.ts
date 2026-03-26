@@ -6,8 +6,8 @@ const THREAD_MESSAGES_STORAGE_KEY = 'slopify-thread-messages';
 
 type StoredMessagesByThread = Record<string, Message[]>;
 
-export async function listThreads(): Promise<Thread[]> {
-	const response = await fetch(THREADS_API_ENDPOINT);
+export async function listThreads(signal?: AbortSignal): Promise<Thread[]> {
+	const response = await fetch(THREADS_API_ENDPOINT, { signal });
 	const payload = (await response.json()) as Thread[] | { error?: string };
 
 	if (!response.ok || !Array.isArray(payload)) {

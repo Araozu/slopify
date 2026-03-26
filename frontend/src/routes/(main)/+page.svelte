@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { useQueryClient } from '@tanstack/svelte-query';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { createThread, listThreads } from '$lib/thread-client';
+	import { ensureFirstThread } from '$lib/queries/thread-query';
 	import { onMount } from 'svelte';
+
+	const queryClient = useQueryClient();
 
 	let isLoading = $state(true);
 	let errorMessage = $state('');
@@ -13,8 +16,7 @@
 
 	async function redirectToThread() {
 		try {
-			const threads = await listThreads();
-			const targetThread = threads[0] ?? (await createThread());
+			const targetThread = await ensureFirstThread(queryClient);
 
 			await goto(resolve(`/thread/${targetThread.id}`), { replaceState: true });
 		} catch (error) {

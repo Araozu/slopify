@@ -1,4 +1,5 @@
 /target
 .cargo
 .cargo-home
+.env
 
