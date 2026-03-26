@@ -1,10 +1,11 @@
 use axum::Router;
 use reqwest::Client;
+use sqlx::PgPool;
 use tower_http::services::{ServeDir, ServeFile};
 
 use crate::{config::AppConfig, state::AppState};
 
-pub fn build_router(config: &AppConfig) -> Router {
+pub fn build_router(config: &AppConfig, db_pool: PgPool) -> Router {
     let static_dir = config.static_dir().to_string();
     let index_file = format!("{static_dir}/index.html");
 
@@ -12,5 +13,6 @@ pub fn build_router(config: &AppConfig) -> Router {
         .fallback_service(ServeDir::new(static_dir).not_found_service(ServeFile::new(index_file)))
         .with_state(AppState {
             http_client: Client::new(),
+            db_pool,
         })
 }

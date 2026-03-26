@@ -7,9 +7,12 @@ export interface Message {
 	timestamp: string;
 }
 
-export interface ChatThread {
+export interface Thread {
 	id: string;
 	title: string;
+}
+
+export interface ChatThread extends Thread {
 	lastMessage: string;
 	messages: Message[];
 }

@@ -6,7 +6,7 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
-    http::handlers::{chat, health, streams},
+    http::handlers::{chat, health, streams, threads},
     state::AppState,
 };
 
@@ -24,12 +24,19 @@ fn api_router() -> Router<AppState> {
                 .options(chat::chat_options)
                 .layer(chat_cors_layer()),
         )
+        .route(
+            "/v1/threads",
+            get(threads::list_threads)
+                .post(threads::create_thread)
+                .options(threads::thread_options)
+                .layer(chat_cors_layer()),
+        )
         .route("/v1/streams/hello", get(streams::hello_stream))
 }
 
 fn chat_cors_layer() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([Method::POST, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
 }

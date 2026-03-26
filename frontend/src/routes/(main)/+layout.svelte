@@ -29,9 +29,8 @@
 			>
 				Chat
 			</a>
-			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 			<a
-				href="/history"
+				href={resolve('/history')}
 				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
 			>
 				History
