@@ -39,6 +39,18 @@
 	--sidebar-accent-foreground: oklch(0.216 0.006 56.043);
 	--sidebar-border: oklch(0.923 0.003 48.717);
 	--sidebar-ring: oklch(0.709 0.01 56.259);
+
+	/* Skeuomorphic Variables */
+	--skeuo-top-light: oklch(1 0 0 / 40%);
+	--skeuo-bottom-dark: oklch(0 0 0 / 10%);
+	--skeuo-inner-shadow: inset 0 1px 2px oklch(0 0 0 / 5%);
+	--skeuo-outer-shadow: 0 1px 3px oklch(0 0 0 / 10%), 0 1px 2px oklch(0 0 0 / 6%);
+	--skeuo-button-gradient: linear-gradient(
+		to bottom,
+		var(--skeuo-top-light),
+		var(--skeuo-bottom-dark)
+	);
+	--skeuo-bevel: inset 0 1px 0 0 oklch(1 0 0 / 40%), inset 0 -1px 0 0 oklch(0 0 0 / 10%);
 }
 
 .dark,
@@ -74,6 +86,13 @@
 	--sidebar-accent-foreground: oklch(0.985 0.001 106.423);
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.553 0.013 58.071);
+
+	/* Skeuomorphic Variables Dark */
+	--skeuo-top-light: oklch(1 0 0 / 10%);
+	--skeuo-bottom-dark: oklch(0 0 0 / 20%);
+	--skeuo-inner-shadow: inset 0 1px 2px oklch(0 0 0 / 20%);
+	--skeuo-outer-shadow: 0 1px 3px oklch(0 0 0 / 40%), 0 1px 2px oklch(0 0 0 / 30%);
+	--skeuo-bevel: inset 0 1px 0 0 oklch(1 0 0 / 10%), inset 0 -1px 0 0 oklch(0 0 0 / 20%);
 }
 
 [data-theme='wishful-aurosa'] {
