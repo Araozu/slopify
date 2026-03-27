@@ -22,3 +22,9 @@ export interface AuthUser {
 	email: string;
 	name: string;
 }
+
+export interface OpenRouterApiKey {
+	id: string;
+	name: string;
+	apiKey: string;
+}

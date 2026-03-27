@@ -6,7 +6,7 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
-    http::handlers::{auth, chat, health, streams, threads},
+    http::handlers::{auth, chat, health, openrouter_keys, streams, threads},
     state::AppState,
 };
 
@@ -22,6 +22,16 @@ fn api_router() -> Router<AppState> {
         .route("/v1/auth/login", post(auth::login))
         .route("/v1/auth/logout", post(auth::logout))
         .route("/v1/auth/me", get(auth::me))
+        .route(
+            "/v1/openrouter-keys",
+            get(openrouter_keys::list_openrouter_keys)
+                .post(openrouter_keys::create_openrouter_key),
+        )
+        .route(
+            "/v1/openrouter-keys/{key_id}",
+            axum::routing::patch(openrouter_keys::update_openrouter_key)
+                .delete(openrouter_keys::delete_openrouter_key),
+        )
         .route(
             "/v1/chat/completions",
             post(chat::complete_prompt)

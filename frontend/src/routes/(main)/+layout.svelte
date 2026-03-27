@@ -1,11 +1,19 @@
 <script lang="ts">
+	import { createQuery } from '@tanstack/svelte-query';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
-	import { UserIcon, SignOutIcon, GearIcon, ClockCounterClockwiseIcon } from 'phosphor-svelte';
+	import {
+		UserIcon,
+		SignOutIcon,
+		GearIcon,
+		ClockCounterClockwiseIcon,
+		KeyIcon
+	} from 'phosphor-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { logoutUser } from '$lib/auth-client';
+	import { currentUserQueryOptions } from '$lib/queries/auth-query';
 	import { clearMessagesByThread } from '$lib/thread-client';
 	import type { AuthUser } from '$lib/types';
 	import ModeToggle from '$lib/components/mode-toggle/mode-toggle.svelte';
@@ -18,7 +26,11 @@
 		data: { user: AuthUser };
 	}>();
 
-	const user = $derived(data.user);
+	const currentUserQuery = createQuery(() => ({
+		...currentUserQueryOptions(),
+		initialData: data.user
+	}));
+	const user = $derived((currentUserQuery.data ?? data.user) as AuthUser);
 
 	onMount(() => {
 		theme.init();
@@ -45,6 +57,18 @@
 				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
 			>
 				Chat
+			</a>
+			<a
+				href={resolve('/(main)/profile')}
+				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
+			>
+				Profile
+			</a>
+			<a
+				href={resolve('/(main)/settings/keys')}
+				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
+			>
+				Keys
 			</a>
 			<!-- eslint-disable svelte/no-navigation-without-resolve -->
 			<a
@@ -81,9 +105,13 @@
 					</DropdownMenu.Label>
 					<DropdownMenu.Separator />
 					<DropdownMenu.Group>
-						<DropdownMenu.Item>
+						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/profile'))}>
 							<UserIcon class="mr-2 h-4 w-4" />
 							<span>Profile</span>
+						</DropdownMenu.Item>
+						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/settings/keys'))}>
+							<KeyIcon class="mr-2 h-4 w-4" />
+							<span>API Keys</span>
 						</DropdownMenu.Item>
 						<DropdownMenu.Item>
 							<GearIcon class="mr-2 h-4 w-4" />
