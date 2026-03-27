@@ -1,18 +1,35 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { invalidateAll } from '$app/navigation';
 	import { UserIcon, SignOutIcon, GearIcon, ClockCounterClockwiseIcon } from 'phosphor-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
+	import { logoutUser } from '$lib/auth-client';
+	import { clearMessagesByThread } from '$lib/thread-client';
+	import type { AuthUser } from '$lib/types';
 	import ModeToggle from '$lib/components/mode-toggle/mode-toggle.svelte';
 	import ThemeToggle from '$lib/components/theme-toggle/theme-toggle.svelte';
 	import { onMount } from 'svelte';
 	import { theme } from '$lib/stores/theme';
 
-	let { children } = $props();
+	let { children, data } = $props<{
+		children: () => unknown;
+		data: { user: AuthUser };
+	}>();
+
+	const user = $derived(data.user);
 
 	onMount(() => {
 		theme.init();
 	});
+
+	async function handleLogout() {
+		await logoutUser();
+		clearMessagesByThread(user.id);
+		await invalidateAll();
+		await goto(resolve('/auth'), { replaceState: true });
+	}
 </script>
 
 <div class="flex min-h-screen flex-col bg-background text-foreground">
@@ -58,8 +75,8 @@
 				<DropdownMenu.Content align="end" class="w-56">
 					<DropdownMenu.Label class="font-normal">
 						<div class="flex flex-col space-y-1">
-							<p class="text-sm leading-none font-medium">SoyDev Girl</p>
-							<p class="text-xs leading-none text-muted-foreground">latte@slopify.ai</p>
+							<p class="text-sm leading-none font-medium">{user.name}</p>
+							<p class="text-xs leading-none text-muted-foreground">{user.email}</p>
 						</div>
 					</DropdownMenu.Label>
 					<DropdownMenu.Separator />
@@ -80,6 +97,7 @@
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item
 						class="focus:text-destructive-foreground text-destructive focus:bg-destructive"
+						onclick={handleLogout}
 					>
 						<SignOutIcon class="mr-2 h-4 w-4" />
 						<span>Log out</span>

@@ -16,3 +16,9 @@ export interface ChatThread extends Thread {
 	lastMessage: string;
 	messages: Message[];
 }
+
+export interface AuthUser {
+	id: string;
+	email: string;
+	name: string;
+}

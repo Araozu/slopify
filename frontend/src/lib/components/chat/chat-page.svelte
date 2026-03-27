@@ -2,6 +2,7 @@
 	import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import {
 		ChatCircleIcon,
 		PaperPlaneRightIcon,
@@ -15,7 +16,7 @@
 	import { threadKeys, threadsQueryOptions } from '$lib/queries/thread-query';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { createThread, loadMessagesByThread, saveMessagesByThread } from '$lib/thread-client';
-	import type { Message, Thread } from '$lib/types';
+	import type { AuthUser, Message, Thread } from '$lib/types';
 	import { cn } from '$lib/utils';
 	import { onMount, tick } from 'svelte';
 
@@ -40,6 +41,7 @@
 	let hasRequestedInitialThread = $state(false);
 
 	let viewportRef: HTMLElement | null = $state(null);
+	let currentUser = $derived(page.data.user as AuthUser);
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const createThreadMutation = createMutation(() => ({
@@ -91,7 +93,7 @@
 	);
 
 	onMount(() => {
-		messagesByThread = loadMessagesByThread();
+		messagesByThread = loadMessagesByThread(currentUser.id);
 	});
 
 	$effect(() => {
@@ -163,7 +165,7 @@
 		};
 
 		messagesByThread = nextMessagesByThread;
-		saveMessagesByThread(nextMessagesByThread);
+		saveMessagesByThread(currentUser.id, nextMessagesByThread);
 	}
 
 	async function gotoThread(id: string, replaceState = false) {

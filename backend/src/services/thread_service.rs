@@ -29,13 +29,14 @@ impl From<sqlx::Error> for ThreadServiceError {
     }
 }
 
-pub async fn list_threads(pool: &PgPool) -> Result<Vec<Thread>, ThreadServiceError> {
-    let threads = thread_storage::list_threads(pool).await?;
+pub async fn list_threads(pool: &PgPool, user_id: Uuid) -> Result<Vec<Thread>, ThreadServiceError> {
+    let threads = thread_storage::list_threads(pool, user_id).await?;
     Ok(threads.into_iter().map(map_thread).collect())
 }
 
 pub async fn create_thread(
     pool: &PgPool,
+    user_id: Uuid,
     title: Option<String>,
 ) -> Result<Thread, ThreadServiceError> {
     let trimmed_title = title
@@ -43,7 +44,7 @@ pub async fn create_thread(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .unwrap_or(DEFAULT_THREAD_TITLE);
-    let thread = thread_storage::create_thread(pool, Uuid::new_v4(), trimmed_title).await?;
+    let thread = thread_storage::create_thread(pool, Uuid::new_v4(), user_id, trimmed_title).await?;
 
     Ok(map_thread(thread))
 }

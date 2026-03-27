@@ -7,6 +7,7 @@ use axum::{
 use serde::Deserialize;
 
 use crate::{
+    http::auth::AuthSession,
     services::thread_service::{self, ThreadServiceError},
     state::AppState,
 };
@@ -16,8 +17,8 @@ pub struct CreateThreadRequest {
     pub title: Option<String>,
 }
 
-pub async fn list_threads(State(state): State<AppState>) -> Response {
-    match thread_service::list_threads(&state.db_pool).await {
+pub async fn list_threads(State(state): State<AppState>, session: AuthSession) -> Response {
+    match thread_service::list_threads(&state.db_pool, session.user_id).await {
         Ok(threads) => (StatusCode::OK, Json(threads)).into_response(),
         Err(error) => ApiError::from(error).into_response(),
     }
@@ -25,9 +26,10 @@ pub async fn list_threads(State(state): State<AppState>) -> Response {
 
 pub async fn create_thread(
     State(state): State<AppState>,
+    session: AuthSession,
     Json(payload): Json<CreateThreadRequest>,
 ) -> Response {
-    match thread_service::create_thread(&state.db_pool, payload.title).await {
+    match thread_service::create_thread(&state.db_pool, session.user_id, payload.title).await {
         Ok(thread) => (StatusCode::CREATED, Json(thread)).into_response(),
         Err(error) => ApiError::from(error).into_response(),
     }

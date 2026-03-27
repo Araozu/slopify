@@ -2,12 +2,14 @@ import { browser } from '$app/environment';
 import type { Message, Thread } from '$lib/types';
 
 const THREADS_API_ENDPOINT = '/api/v1/threads';
-const THREAD_MESSAGES_STORAGE_KEY = 'slopify-thread-messages';
 
 type StoredMessagesByThread = Record<string, Message[]>;
 
 export async function listThreads(signal?: AbortSignal): Promise<Thread[]> {
-	const response = await fetch(THREADS_API_ENDPOINT, { signal });
+	const response = await fetch(THREADS_API_ENDPOINT, {
+		signal,
+		credentials: 'include'
+	});
 	const payload = (await response.json()) as Thread[] | { error?: string };
 
 	if (!response.ok || !Array.isArray(payload)) {
@@ -23,6 +25,7 @@ export async function createThread(title?: string): Promise<Thread> {
 		headers: {
 			'content-type': 'application/json'
 		},
+		credentials: 'include',
 		body: JSON.stringify({ title })
 	});
 	const payload = (await response.json()) as Thread | { error?: string };
@@ -34,12 +37,12 @@ export async function createThread(title?: string): Promise<Thread> {
 	return payload;
 }
 
-export function loadMessagesByThread(): StoredMessagesByThread {
+export function loadMessagesByThread(userId: string): StoredMessagesByThread {
 	if (!browser) {
 		return {};
 	}
 
-	const storedMessages = localStorage.getItem(THREAD_MESSAGES_STORAGE_KEY);
+	const storedMessages = localStorage.getItem(getMessagesStorageKey(userId));
 	if (!storedMessages) {
 		return {};
 	}
@@ -57,10 +60,22 @@ export function loadMessagesByThread(): StoredMessagesByThread {
 	}
 }
 
-export function saveMessagesByThread(messagesByThread: StoredMessagesByThread) {
+export function saveMessagesByThread(userId: string, messagesByThread: StoredMessagesByThread) {
 	if (!browser) {
 		return;
 	}
 
-	localStorage.setItem(THREAD_MESSAGES_STORAGE_KEY, JSON.stringify(messagesByThread));
+	localStorage.setItem(getMessagesStorageKey(userId), JSON.stringify(messagesByThread));
+}
+
+export function clearMessagesByThread(userId: string) {
+	if (!browser) {
+		return;
+	}
+
+	localStorage.removeItem(getMessagesStorageKey(userId));
+}
+
+function getMessagesStorageKey(userId: string) {
+	return `slopify-thread-messages:${userId}`;
 }
