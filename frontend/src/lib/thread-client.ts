@@ -51,6 +51,20 @@ export async function createThread(title?: string): Promise<Thread> {
 	return payload;
 }
 
+export async function deleteThread(threadId: string): Promise<void> {
+	const response = await fetch(`${THREADS_API_ENDPOINT}/${threadId}`, {
+		method: 'DELETE',
+		credentials: 'include'
+	});
+
+	if (response.status === 204) {
+		return;
+	}
+
+	const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+	throw new Error(payload?.error ?? 'Failed to delete thread.');
+}
+
 export async function listThreadMessages(
 	threadId: string,
 	signal?: AbortSignal

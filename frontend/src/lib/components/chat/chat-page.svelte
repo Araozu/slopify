@@ -3,29 +3,25 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
-		ChatCircleIcon,
-		KeyIcon,
-		PaperPlaneRightIcon,
-		PlusIcon,
-		RobotIcon,
-		UserIcon
-	} from 'phosphor-svelte';
-	import SvelteMarkdown from 'svelte-markdown';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import {
 		threadKeys,
 		threadMessagesQueryOptions,
 		threadsQueryOptions
 	} from '$lib/queries/thread-query';
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
-	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import { createThread, streamChatCompletion, type StreamChatEvent } from '$lib/thread-client';
+	import {
+		createThread,
+		deleteThread,
+		streamChatCompletion,
+		type StreamChatEvent
+	} from '$lib/thread-client';
 	import type { Message, OpenRouterApiKey, Thread } from '$lib/types';
-	import { cn } from '$lib/utils';
 	import { tick, untrack } from 'svelte';
+	import ChatComposer from './chat-composer.svelte';
+	import ChatHeader from './chat-header.svelte';
+	import ChatMessagesViewport from './chat-messages-viewport.svelte';
+	import { getMessageReasoning, getMessageText } from './chat-message-utils.js';
+	import StreamLogSidebar from './stream-log-sidebar.svelte';
+	import ThreadSidebar from './thread-sidebar.svelte';
 
 	type MessagesByThread = Record<string, Message[]>;
 
@@ -55,6 +51,7 @@
 
 	let viewportRef: HTMLElement | null = $state(null);
 	let flushTimer: ReturnType<typeof setTimeout> | null = null;
+	let sidebarCollapsed = $state(false);
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
@@ -73,6 +70,27 @@
 			updateThreadMessages(newThread.id, []);
 			draft = '';
 			await gotoThread(newThread.id, variables.replaceState ?? false);
+		}
+	}));
+
+	const deleteThreadMutation = createMutation(() => ({
+		mutationFn: (id: string) => deleteThread(id),
+		onSuccess: async (_, deletedId) => {
+			queryClient.setQueryData<Thread[]>(threadKeys.all, (current) =>
+				(current ?? []).filter((t) => t.id !== deletedId)
+			);
+			queryClient.removeQueries({ queryKey: threadKeys.messages(deletedId) });
+			messagesByThread = Object.fromEntries(
+				Object.entries(messagesByThread).filter(([key]) => key !== deletedId)
+			);
+			if (deletedId === threadId) {
+				const remaining = (queryClient.getQueryData(threadKeys.all) as Thread[] | undefined) ?? [];
+				if (remaining.length > 0) {
+					await gotoThread(remaining[0].id, true);
+				} else {
+					createThreadMutation.mutate({ replaceState: true });
+				}
+			}
 		}
 	}));
 
@@ -100,6 +118,7 @@
 			.join('|')
 	);
 	let isCreatingThread = $derived(createThreadMutation.isPending);
+	let isDeletingThread = $derived(deleteThreadMutation.isPending);
 	let isLoadingMessages = $derived(
 		Boolean(threadId && activeThread) &&
 			threadMessagesQuery.isPending &&
@@ -122,6 +141,11 @@
 		const messageError = threadMessagesQuery.error;
 		if (messageError instanceof Error) {
 			return messageError.message;
+		}
+
+		const deleteError = deleteThreadMutation.error;
+		if (deleteError instanceof Error) {
+			return deleteError.message;
 		}
 
 		return '';
@@ -191,7 +215,8 @@
 		if (!viewportRef) {
 			return true;
 		}
-		const distanceToBottom = viewportRef.scrollHeight - (viewportRef.scrollTop + viewportRef.clientHeight);
+		const distanceToBottom =
+			viewportRef.scrollHeight - (viewportRef.scrollTop + viewportRef.clientHeight);
 		return distanceToBottom <= threshold;
 	}
 
@@ -253,21 +278,6 @@
 			parts: normalizedParts,
 			content: content || fallbackContent
 		};
-	}
-
-	function getMessageText(message: Message) {
-		const text = (message.parts ?? [])
-			.filter((part) => part.kind === 'text')
-			.map((part) => part.text)
-			.join('');
-		return text || message.content || '';
-	}
-
-	function getMessageReasoning(message: Message) {
-		return (message.parts ?? [])
-			.filter((part) => part.kind === 'reasoning')
-			.map((part) => part.text)
-			.join('');
 	}
 
 	function pushStreamEvent(type: StreamChatEvent['type'], detail: string) {
@@ -394,15 +404,6 @@
 		}
 	}
 
-	function formatMessageTimestamp(timestamp: string) {
-		const date = new Date(timestamp);
-		if (Number.isNaN(date.getTime())) {
-			return timestamp;
-		}
-
-		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-	}
-
 	async function gotoThread(id: string, replaceState = false) {
 		await goto(resolve(`/thread/${id}`), { replaceState });
 	}
@@ -413,6 +414,21 @@
 		}
 
 		createThreadMutation.mutate({ replaceState: false });
+	}
+
+	async function handleDeleteThread(targetId: string) {
+		if (isDeletingThread || !targetId) {
+			return;
+		}
+
+		const confirmed = window.confirm(
+			'Delete this thread and all its messages? This cannot be undone.'
+		);
+		if (!confirmed) {
+			return;
+		}
+
+		deleteThreadMutation.mutate(targetId);
 	}
 
 	async function sendMessage() {
@@ -526,7 +542,10 @@
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to send prompt.';
 			pushStreamEvent('message_failed', `request failed: ${message}`);
-			updateThreadMessages(requestThreadId, [...nextMessages, createMessage('assistant', `Error: ${message}`)]);
+			updateThreadMessages(requestThreadId, [
+				...nextMessages,
+				createMessage('assistant', `Error: ${message}`)
+			]);
 		} finally {
 			flushPendingStreamUpdates();
 			isSending = false;
@@ -566,303 +585,50 @@
 </script>
 
 <div class="flex h-[calc(100vh-2rem)] min-h-0 w-full overflow-hidden bg-background">
-	<aside class="flex min-h-0 w-64 flex-col border-r bg-muted/30 backdrop-blur-md">
-		<div class="flex items-center justify-between p-4">
-			<h2 class="text-[10px] font-black text-foreground/40 uppercase">Recent</h2>
-			<Button
-				variant="ghost"
-				size="icon-xs"
-				class="rounded-full hover:bg-primary/10 hover:text-primary"
-				disabled={isCreatingThread}
-				onclick={handleCreateThread}
-			>
-				<PlusIcon size={14} />
-			</Button>
-		</div>
-		<ScrollArea.Root class="flex-1">
-			<div class="space-y-2 p-2">
-				{#each chatThreads as chat (chat.id)}
-					<button
-						onclick={() => void gotoThread(chat.id)}
-						class={cn(
-							'group flex w-full flex-col gap-1 rounded-xl px-3 py-1.5 text-left transition-all',
-							threadId === chat.id
-								? 'bg-background shadow-sm ring-1 shadow-primary/5 ring-border'
-								: 'hover:bg-muted/80'
-						)}
-					>
-						<div class="flex items-center justify-between">
-							<span
-								class={cn(
-									'truncate text-sm font-semibold transition-colors',
-									threadId === chat.id
-										? 'text-primary'
-										: 'text-foreground/80 group-hover:text-foreground'
-								)}>{chat.title}</span
-							>
-						</div>
-						<p class="line-clamp-1 text-[11px] text-muted-foreground/70">{chat.lastMessage}</p>
-					</button>
-				{/each}
-			</div>
-		</ScrollArea.Root>
-	</aside>
+	<ThreadSidebar
+		collapsed={sidebarCollapsed}
+		{chatThreads}
+		{threadId}
+		{isCreatingThread}
+		{isDeletingThread}
+		onCreateThread={handleCreateThread}
+		onSelectThread={(id) => void gotoThread(id)}
+		onDeleteThread={handleDeleteThread}
+	/>
 
 	<main class="flex min-h-0 flex-1 flex-col bg-background/50 backdrop-blur-sm">
-		<header class="flex items-center border-b bg-background/20 px-6 py-1 backdrop-blur-xl">
-			<div class="flex items-center gap-2">
-				<div
-					class="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary"
-				>
-					<ChatCircleIcon size={14} weight="fill" />
-				</div>
-				<h1 class="text-sm font-bold tracking-tight">{threadTitle}</h1>
-			</div>
-			<div class="ml-auto flex items-center gap-2"></div>
-		</header>
+		<ChatHeader
+			{threadTitle}
+			{activeThread}
+			{threadId}
+			{sidebarCollapsed}
+			{isDeletingThread}
+			{isSending}
+			onDeleteThread={handleDeleteThread}
+			onToggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)}
+		/>
 
-		<ScrollArea.Root class="min-h-0 flex-1" bind:viewportRef>
-			<div class="flex min-h-full flex-col justify-end">
-				{#if loadError}
-					<div class="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 py-10">
-						<p
-							class="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-						>
-							{loadError}
-						</p>
-					</div>
-				{:else if isBootstrapping || isLoadingMessages}
-					<div class="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 py-10">
-						<p class="text-sm text-muted-foreground">
-							{isLoadingMessages ? 'Loading messages...' : 'Loading threads...'}
-						</p>
-					</div>
-				{:else if messages.length === 0}
-					<div class="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 py-10">
-						<div
-							class="max-w-sm rounded-3xl border bg-background/80 px-6 py-8 text-center shadow-sm"
-						>
-							<h2 class="text-base font-semibold">Empty thread</h2>
-							<p class="mt-2 text-sm text-muted-foreground">
-								Send the first message to start this chat.
-							</p>
-						</div>
-					</div>
-				{:else}
-					<div class="mx-auto w-full max-w-3xl space-y-10 px-6 py-10">
-						{#each messages as message (message.id)}
-							<div
-								id={message.id}
-								class={cn(
-									'flex w-full animate-in gap-5 transition-all duration-500 fade-in slide-in-from-bottom-2',
-									message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-								)}
-							>
-								<Avatar.Root
-									title={message.role === 'assistant' ? 'Clanker' : 'Human'}
-									class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background"
-								>
-									<Avatar.Fallback
-										class={message.role === 'assistant'
-											? 'border border-primary/20 bg-primary/10 text-primary'
-											: 'border border-border bg-secondary text-secondary-foreground'}
-									>
-										{#if message.role === 'assistant'}
-											<RobotIcon size={18} />
-										{:else}
-											<UserIcon size={18} />
-										{/if}
-									</Avatar.Fallback>
-								</Avatar.Root>
-								<div
-									class={cn(
-										'flex max-w-[85%] flex-col gap-2.5',
-										message.role === 'user' ? 'items-end' : 'items-start'
-									)}
-								>
-									<div
-										class={cn(
-											'rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1',
-											message.role === 'user'
-												? 'bg-primary text-primary-foreground ring-primary/20'
-												: 'prose prose-sm max-w-none bg-background/80 font-mono text-xs ring-border backdrop-blur-md prose-neutral dark:prose-invert'
-										)}
-									>
-										{#if message.role === 'assistant'}
-											<div
-												class="prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-li:text-foreground"
-											>
-												<SvelteMarkdown source={getMessageText(message)} />
-											</div>
-											{#if getMessageReasoning(message)}
-												<details class="mt-3 rounded-md border border-border/70 bg-muted/30 px-3 py-2">
-													<summary class="cursor-pointer text-[10px] font-bold tracking-wide uppercase">
-														Reasoning
-													</summary>
-													<p class="mt-2 whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">
-														{getMessageReasoning(message)}
-													</p>
-												</details>
-											{/if}
-										{:else}
-											{getMessageText(message)}
-										{/if}
-									</div>
-									<span
-										class="px-1 text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
-									>
-										{formatMessageTimestamp(message.timestamp)}
-									</span>
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		</ScrollArea.Root>
+		<ChatMessagesViewport
+			bind:viewportRef
+			{loadError}
+			{isBootstrapping}
+			{isLoadingMessages}
+			{messages}
+		/>
 
-		<footer class="p-6">
-			<div class="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-2 px-2">
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger
-						class="flex h-8 min-w-0 flex-1 items-center justify-between gap-2 rounded-md border border-border/60 bg-background/70 px-3 text-left text-xs transition-all hover:bg-background/90 disabled:opacity-50"
-						disabled={isSending || isBootstrapping || !activeThread}
-					>
-						<div class="flex items-center gap-2 truncate">
-							<KeyIcon
-								size={12}
-								weight={selectedKey ? 'fill' : 'regular'}
-								class={selectedKey ? 'text-primary' : 'text-muted-foreground/40'}
-							/>
-							<span class={selectedKey ? 'text-foreground' : 'text-muted-foreground/40'}>
-								{selectedKey ? selectedKey.name : 'No keys saved'}
-							</span>
-						</div>
-						<span class="text-[10px] font-black tracking-widest text-muted-foreground/30 uppercase"
-							>key</span
-						>
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="start" class="w-56 rounded-xl shadow-xl">
-						<DropdownMenu.Label
-							class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase"
-							>Select provider key</DropdownMenu.Label
-						>
-						<DropdownMenu.Separator />
-						{#if keys.length === 0}
-							<div class="px-2 py-3 text-center">
-								<p class="text-[11px] text-muted-foreground/60">No keys found</p>
-								<Button
-									variant="link"
-									class="mt-1 h-auto p-0 text-[10px] font-bold tracking-widest uppercase"
-									onclick={() => goto(resolve('/(main)/settings/keys'))}
-								>
-									Add one in settings
-								</Button>
-							</div>
-						{:else}
-							{#each keys as key (key.id)}
-								<DropdownMenu.Item
-									class="flex items-center justify-between rounded-lg py-2"
-									onclick={() => (selectedKeyId = key.id)}
-								>
-									<div class="flex flex-col gap-0.5">
-										<span class="text-xs font-bold">{key.name}</span>
-										<span class="font-mono text-[9px] text-muted-foreground/50"
-											>{key.apiKey.slice(0, 8)}••••</span
-										>
-									</div>
-									{#if selectedKey?.id === key.id}
-										<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
-									{/if}
-								</DropdownMenu.Item>
-							{/each}
-						{/if}
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-
-				<Input
-					bind:value={model}
-					placeholder="openai/gpt-4o-mini"
-					class="h-8 max-w-56 border-border/60 bg-background/70 text-xs"
-					disabled={isSending || isBootstrapping || !activeThread}
-				/>
-				<span class="text-[10px] font-black tracking-widest text-muted-foreground/30 uppercase"
-					>model</span
-				>
-			</div>
-			<div
-				class="mx-auto flex max-w-3xl items-center gap-3 rounded-[20px] bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
-			>
-				<Input
-					bind:value={draft}
-					placeholder="Message Slopify..."
-					class="h-9 border-0 bg-transparent px-3 text-sm placeholder:text-muted-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
-					disabled={isSending || isBootstrapping || !activeThread}
-					onkeydown={handleComposerKeydown}
-				/>
-				<Button
-					size="icon-sm"
-					variant="default"
-					class="h-9 w-9 rounded-[14px] shadow-lg shadow-primary/20 transition-transform active:scale-95"
-					disabled={isSending ||
-						isBootstrapping ||
-						!activeThread ||
-						!draft.trim() ||
-						!selectedKey ||
-						!model.trim()}
-					onclick={sendMessage}
-				>
-					<PaperPlaneRightIcon size={18} weight="bold" />
-				</Button>
-			</div>
-			<p
-				class="mt-3 text-center text-[10px] font-medium tracking-widest text-muted-foreground/30 uppercase"
-			>
-				You know by now the clanker hallucinates... like a lot. Double check.
-			</p>
-		</footer>
+		<ChatComposer
+			bind:draft
+			bind:model
+			{keys}
+			{selectedKey}
+			{isSending}
+			{isBootstrapping}
+			{activeThread}
+			onSelectKey={(id) => (selectedKeyId = id)}
+			onSend={sendMessage}
+			onComposerKeydown={handleComposerKeydown}
+		/>
 	</main>
 
-	<aside class="hidden min-h-0 w-60 flex-col border-l bg-muted/20 backdrop-blur-md lg:flex">
-		<div class="p-4">
-			<h2 class="text-[10px] font-black tracking-widest text-foreground/40 uppercase">
-				Stream Log
-			</h2>
-		</div>
-		<ScrollArea.Root class="flex-1">
-			<div class="space-y-4 p-4">
-				{#if streamEvents.length === 0}
-					<p class="text-[11px] text-muted-foreground/60">No stream events yet.</p>
-				{:else}
-					{#each streamEvents as event (`stream-${event.id}`)}
-						<div class="group flex w-full items-start gap-2.5 text-left transition-all">
-							<div
-								class={cn(
-									'mt-1.5 flex h-1.5 w-1.5 shrink-0 rounded-full transition-all group-hover:scale-125',
-									event.type === 'message_failed' ? 'bg-destructive' : 'bg-primary'
-								)}
-							></div>
-							<div class="flex flex-col gap-1">
-								<span
-									class="text-[10px] font-black tracking-tighter text-muted-foreground/50 uppercase transition-colors group-hover:text-primary/60"
-								>
-									{event.type}
-								</span>
-								<p
-									class="line-clamp-2 text-[11px] leading-snug text-foreground/60 transition-colors group-hover:text-foreground"
-								>
-									{event.detail}
-								</p>
-								<span
-									class="text-[9px] font-bold tracking-[0.12em] text-muted-foreground/40 uppercase"
-								>
-									{formatMessageTimestamp(event.timestamp)}
-								</span>
-							</div>
-						</div>
-					{/each}
-				{/if}
-			</div>
-		</ScrollArea.Root>
-	</aside>
+	<StreamLogSidebar collapsed={sidebarCollapsed} {streamEvents} />
 </div>
