@@ -1,5 +1,6 @@
 export type Role = 'user' | 'assistant';
 export type MessageStatus = 'streaming' | 'completed' | 'failed';
+export type UserMessageDeliveryStatus = 'sent' | 'delivered';
 
 export type MessagePart = { kind: 'text'; text: string } | { kind: 'reasoning'; text: string };
 
@@ -7,6 +8,7 @@ export interface Message {
 	id: string;
 	role: Role;
 	status?: MessageStatus;
+	deliveryStatus?: UserMessageDeliveryStatus;
 	parts?: MessagePart[];
 	provider?: {
 		provider: string;

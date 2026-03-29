@@ -16,6 +16,8 @@
 		type StreamChatEvent
 	} from '$lib/thread-client';
 	import type { Message, OpenRouterApiKey, Thread } from '$lib/types';
+	import { showAssistantStreamingText } from '$lib/stores/streaming-preference';
+	import { get } from 'svelte/store';
 	import { tick, untrack } from 'svelte';
 	import ChatComposer from './chat-composer.svelte';
 	import ChatHeader from './chat-header.svelte';
@@ -53,6 +55,7 @@
 	let viewportRef: HTMLElement | null = $state(null);
 	let flushTimer: ReturnType<typeof setTimeout> | null = null;
 	let sidebarCollapsed = $state(false);
+	let optimisticAssistantPlaceholderId = $state<string | null>(null);
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
@@ -273,6 +276,22 @@
 		};
 	}
 
+	function patchThreadMessage(
+		targetThreadId: string,
+		messageId: string,
+		update: (message: Message) => Message
+	) {
+		const threadMessages = messagesByThread[targetThreadId] ?? [];
+		const index = threadMessages.findIndex((message) => message.id === messageId);
+		if (index === -1) {
+			return;
+		}
+
+		const nextMessages = [...threadMessages];
+		nextMessages[index] = normalizeMessage(update(nextMessages[index]));
+		updateThreadMessages(targetThreadId, nextMessages);
+	}
+
 	function normalizeMessage(message: Message): Message {
 		const status = message.status ?? 'completed';
 		const incomingParts = Array.isArray(message.parts) ? message.parts : [];
@@ -326,15 +345,7 @@
 		messageId: string,
 		update: (message: Message) => Message
 	) {
-		const threadMessages = messagesByThread[targetThreadId] ?? [];
-		const index = threadMessages.findIndex((message) => message.id === messageId);
-		if (index === -1) {
-			return;
-		}
-
-		const nextMessages = [...threadMessages];
-		nextMessages[index] = normalizeMessage(update(nextMessages[index]));
-		updateThreadMessages(targetThreadId, nextMessages);
+		patchThreadMessage(targetThreadId, messageId, update);
 	}
 
 	function queueStreamDelta(
@@ -469,7 +480,28 @@
 			return;
 		}
 
-		const nextMessages = [...messages, createMessage('user', prompt)];
+		const userMessage: Message = {
+			...createMessage('user', prompt),
+			deliveryStatus: 'sent'
+		};
+		let nextMessages: Message[] = [...messages, userMessage];
+		if (!get(showAssistantStreamingText)) {
+			const placeholderId = crypto.randomUUID();
+			optimisticAssistantPlaceholderId = placeholderId;
+			nextMessages = [
+				...nextMessages,
+				{
+					id: placeholderId,
+					role: 'assistant',
+					status: 'streaming',
+					parts: [],
+					content: '',
+					timestamp: new Date().toISOString()
+				}
+			];
+		} else {
+			optimisticAssistantPlaceholderId = null;
+		}
 		updateThreadMessages(requestThreadId, nextMessages);
 		draft = '';
 		isSending = true;
@@ -488,6 +520,29 @@
 					switch (event.type) {
 						case 'message_started': {
 							const message = normalizeMessage(event.payload.message);
+							patchThreadMessage(requestThreadId, userMessage.id, (currentMessage) => ({
+								...currentMessage,
+								deliveryStatus: 'delivered'
+							}));
+							const placeholderId = optimisticAssistantPlaceholderId;
+							if (placeholderId) {
+								const threadMessages = messagesByThread[requestThreadId] ?? [];
+								const placeholderIndex = threadMessages.findIndex(
+									(existing) => existing.id === placeholderId
+								);
+								if (placeholderIndex !== -1) {
+									const merged = [...threadMessages];
+									merged[placeholderIndex] = {
+										...message,
+										status: 'streaming'
+									};
+									updateThreadMessages(requestThreadId, merged.map(normalizeMessage));
+									optimisticAssistantPlaceholderId = null;
+									pushStreamEvent(event.type, `assistant ${message.id} started`);
+									break;
+								}
+							}
+							optimisticAssistantPlaceholderId = null;
 							upsertAssistantMessage(requestThreadId, {
 								...message,
 								status: 'streaming'
@@ -566,13 +621,28 @@
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to send prompt.';
 			pushStreamEvent('message_failed', `request failed: ${message}`);
+			const placeholderId = optimisticAssistantPlaceholderId;
+			optimisticAssistantPlaceholderId = null;
+			const current = messagesByThread[requestThreadId] ?? [];
+			const base = placeholderId ? current.filter((entry) => entry.id !== placeholderId) : current;
 			updateThreadMessages(requestThreadId, [
-				...nextMessages,
+				...base,
 				createMessage('assistant', `Error: ${message}`)
 			]);
 		} finally {
 			flushPendingStreamUpdates();
 			isSending = false;
+			const placeholderId = optimisticAssistantPlaceholderId;
+			optimisticAssistantPlaceholderId = null;
+			if (placeholderId) {
+				const current = messagesByThread[requestThreadId] ?? [];
+				if (current.some((entry) => entry.id === placeholderId)) {
+					updateThreadMessages(
+						requestThreadId,
+						current.filter((entry) => entry.id !== placeholderId)
+					);
+				}
+			}
 			void queryClient.invalidateQueries({ queryKey: threadKeys.all });
 		}
 	}

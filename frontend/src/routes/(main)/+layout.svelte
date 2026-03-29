@@ -19,6 +19,7 @@
 	import ThemeToggle from '$lib/components/theme-toggle/theme-toggle.svelte';
 	import { onMount } from 'svelte';
 	import { theme } from '$lib/stores/theme';
+	import { showAssistantStreamingText } from '$lib/stores/streaming-preference';
 
 	let { children, data } = $props<{
 		children: () => unknown;
@@ -33,6 +34,7 @@
 
 	onMount(() => {
 		theme.init();
+		showAssistantStreamingText.init();
 	});
 
 	async function handleLogout() {

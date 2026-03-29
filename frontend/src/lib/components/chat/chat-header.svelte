@@ -90,7 +90,9 @@
 
 <header class="flex items-center border-b bg-background/20 px-6 py-1 backdrop-blur-xl">
 	<div class="flex min-w-0 flex-1 items-center gap-2">
-		<div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+		<div
+			class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+		>
 			<ChatCircleIcon size={14} weight="fill" />
 		</div>
 		{#if editingTitle && activeThread}

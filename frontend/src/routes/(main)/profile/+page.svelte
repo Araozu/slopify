@@ -1,9 +1,16 @@
 <script lang="ts">
 	import { createQuery } from '@tanstack/svelte-query';
 	import { page } from '$app/state';
-	import { EnvelopeSimpleIcon, FingerprintIcon, UserCircleIcon } from 'phosphor-svelte';
+	import {
+		ChatCircleIcon,
+		EnvelopeSimpleIcon,
+		FingerprintIcon,
+		UserCircleIcon
+	} from 'phosphor-svelte';
 	import { currentUserQueryOptions } from '$lib/queries/auth-query';
 	import type { AuthUser } from '$lib/types';
+	import { Button } from '$lib/components/ui/button';
+	import { showAssistantStreamingText } from '$lib/stores/streaming-preference';
 
 	const currentUserQuery = createQuery(() => ({
 		...currentUserQueryOptions(),
@@ -107,6 +114,56 @@
 							<span class="text-[10px] font-black tracking-widest uppercase">User ID</span>
 						</div>
 						<p class="mt-3 font-mono text-[10px] text-muted-foreground/70">{user.id}</p>
+					</div>
+				</div>
+			</section>
+
+			<section class="space-y-4">
+				<h3 class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
+					Chat preferences
+				</h3>
+				<div
+					class="rounded-2xl border bg-card/50 p-5 shadow-sm ring-1 ring-border/40 backdrop-blur-sm"
+				>
+					<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+						<div class="flex gap-3">
+							<div
+								class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+							>
+								<ChatCircleIcon size={18} weight="bold" />
+							</div>
+							<div class="space-y-1">
+								<p class="text-sm font-bold tracking-tight">Show text while streaming</p>
+								<p class="text-xs leading-relaxed text-muted-foreground">
+									When off, the assistant bubble appears right away with a typing indicator and the
+									reply is revealed only after the model finishes.
+								</p>
+							</div>
+						</div>
+						<div
+							class="flex shrink-0 items-center gap-1 rounded-full border border-border/80 bg-muted/40 p-1"
+							role="group"
+							aria-label="Toggle streaming assistant text"
+						>
+							<Button
+								type="button"
+								size="sm"
+								variant={$showAssistantStreamingText ? 'default' : 'ghost'}
+								class="rounded-full px-4"
+								onclick={() => showAssistantStreamingText.setShowAssistantStreamingText(true)}
+							>
+								On
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant={!$showAssistantStreamingText ? 'default' : 'ghost'}
+								class="rounded-full px-4"
+								onclick={() => showAssistantStreamingText.setShowAssistantStreamingText(false)}
+							>
+								Off
+							</Button>
+						</div>
 					</div>
 				</div>
 			</section>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { UserIcon } from 'phosphor-svelte';
+	import { ChecksIcon, CheckIcon, UserIcon } from 'phosphor-svelte';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import type { Message } from '$lib/types';
 	import { formatMessageTimestamp, getMessageText } from './chat-message-utils.js';
@@ -26,8 +26,15 @@
 		>
 			{getMessageText(message)}
 		</div>
-		<span class="px-1 text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase">
-			{formatMessageTimestamp(message.timestamp)}
-		</span>
+		<div
+			class="flex items-center gap-1.5 px-1 text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
+		>
+			<span>{formatMessageTimestamp(message.timestamp)}</span>
+			{#if message.deliveryStatus === 'delivered'}
+				<ChecksIcon size={12} weight="bold" aria-label="Delivered" />
+			{:else if message.deliveryStatus === 'sent'}
+				<CheckIcon size={12} weight="bold" aria-label="Sent" />
+			{/if}
+		</div>
 	</div>
 </div>
