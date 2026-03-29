@@ -18,6 +18,11 @@ pub struct CreateThreadRequest {
     pub title: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct UpdateThreadRequest {
+    pub title: String,
+}
+
 pub async fn list_threads(State(state): State<AppState>, session: AuthSession) -> Response {
     match thread_service::list_threads(&state.db_pool, session.user_id).await {
         Ok(threads) => (StatusCode::OK, Json(threads)).into_response(),
@@ -38,6 +43,25 @@ pub async fn create_thread(
 
 pub async fn thread_options() -> StatusCode {
     StatusCode::NO_CONTENT
+}
+
+pub async fn update_thread(
+    State(state): State<AppState>,
+    session: AuthSession,
+    Path(thread_id): Path<String>,
+    Json(payload): Json<UpdateThreadRequest>,
+) -> Response {
+    let thread_id = match parse_thread_id(thread_id) {
+        Ok(thread_id) => thread_id,
+        Err(error) => return error.into_response(),
+    };
+
+    match thread_service::update_thread_title(&state.db_pool, session.user_id, thread_id, &payload.title)
+        .await
+    {
+        Ok(thread) => (StatusCode::OK, Json(thread)).into_response(),
+        Err(error) => ApiError::from(error).into_response(),
+    }
 }
 
 pub async fn delete_thread(

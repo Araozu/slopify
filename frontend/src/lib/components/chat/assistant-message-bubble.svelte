@@ -30,7 +30,7 @@
 			class="prose prose-sm max-w-none rounded-2xl bg-background/80 font-mono text-xs leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-border backdrop-blur-md prose-neutral dark:prose-invert w-full"
 		>
 			{#if getMessageReasoning(message)}
-				<details class="rounded-t-2xl border-b border-border/70 bg-muted/30 px-3 py-2">
+				<details class="rounded-t-2xl border-b border-border/70 bg-muted/30 px-3 pb-2 pt-3">
 					<summary class="cursor-pointer text-[10px] font-bold tracking-wide uppercase">
 						Reasoning
 					</summary>

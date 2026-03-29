@@ -51,6 +51,24 @@ export async function createThread(title?: string): Promise<Thread> {
 	return payload;
 }
 
+export async function updateThreadTitle(threadId: string, title: string): Promise<Thread> {
+	const response = await fetch(`${THREADS_API_ENDPOINT}/${threadId}`, {
+		method: 'PATCH',
+		headers: {
+			'content-type': 'application/json'
+		},
+		credentials: 'include',
+		body: JSON.stringify({ title })
+	});
+	const payload = (await response.json()) as Thread | { error?: string };
+
+	if (!response.ok || !('id' in payload) || !('title' in payload)) {
+		throw new Error(('error' in payload && payload.error) || 'Failed to rename thread.');
+	}
+
+	return payload;
+}
+
 export async function deleteThread(threadId: string): Promise<void> {
 	const response = await fetch(`${THREADS_API_ENDPOINT}/${threadId}`, {
 		method: 'DELETE',

@@ -42,6 +42,29 @@ pub async fn create_thread(
     .await
 }
 
+pub async fn update_thread_title(
+    pool: &PgPool,
+    user_id: Uuid,
+    id: Uuid,
+    title: &str,
+) -> Result<ThreadRecord, sqlx::Error> {
+    let row = sqlx::query_as::<_, ThreadRecord>(
+        r#"
+        UPDATE threads
+        SET title = $1, updated_at = NOW()
+        WHERE id = $2 AND user_id = $3
+        RETURNING id, title, model
+        "#,
+    )
+    .bind(title)
+    .bind(id)
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
+
+    row.ok_or(sqlx::Error::RowNotFound)
+}
+
 pub async fn update_thread_model(
     pool: &PgPool,
     user_id: Uuid,

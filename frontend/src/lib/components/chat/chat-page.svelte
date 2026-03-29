@@ -12,6 +12,7 @@
 		createThread,
 		deleteThread,
 		streamChatCompletion,
+		updateThreadTitle,
 		type StreamChatEvent
 	} from '$lib/thread-client';
 	import type { Message, OpenRouterApiKey, Thread } from '$lib/types';
@@ -73,6 +74,15 @@
 		}
 	}));
 
+	const renameThreadMutation = createMutation(() => ({
+		mutationFn: ({ id, title }: { id: string; title: string }) => updateThreadTitle(id, title),
+		onSuccess: (updated) => {
+			queryClient.setQueryData<Thread[]>(threadKeys.all, (current) =>
+				(current ?? []).map((t) => (t.id === updated.id ? { ...t, ...updated } : t))
+			);
+		}
+	}));
+
 	const deleteThreadMutation = createMutation(() => ({
 		mutationFn: (id: string) => deleteThread(id),
 		onSuccess: async (_, deletedId) => {
@@ -119,6 +129,7 @@
 	);
 	let isCreatingThread = $derived(createThreadMutation.isPending);
 	let isDeletingThread = $derived(deleteThreadMutation.isPending);
+	let isRenamingThread = $derived(renameThreadMutation.isPending);
 	let isLoadingMessages = $derived(
 		Boolean(threadId && activeThread) &&
 			threadMessagesQuery.isPending &&
@@ -146,6 +157,11 @@
 		const deleteError = deleteThreadMutation.error;
 		if (deleteError instanceof Error) {
 			return deleteError.message;
+		}
+
+		const renameError = renameThreadMutation.error;
+		if (renameError instanceof Error) {
+			return renameError.message;
 		}
 
 		return '';
@@ -416,6 +432,14 @@
 		createThreadMutation.mutate({ replaceState: false });
 	}
 
+	async function handleRenameThread(title: string) {
+		if (!threadId || isRenamingThread) {
+			return;
+		}
+
+		await renameThreadMutation.mutateAsync({ id: threadId, title });
+	}
+
 	async function handleDeleteThread(targetId: string) {
 		if (isDeletingThread || !targetId) {
 			return;
@@ -603,7 +627,9 @@
 			{threadId}
 			{sidebarCollapsed}
 			{isDeletingThread}
+			{isRenamingThread}
 			{isSending}
+			onRenameThread={handleRenameThread}
 			onDeleteThread={handleDeleteThread}
 			onToggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)}
 		/>

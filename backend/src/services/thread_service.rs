@@ -55,6 +55,24 @@ pub async fn create_thread(
     Ok(map_thread(thread))
 }
 
+const MAX_THREAD_TITLE_CHARS: usize = 200;
+
+pub async fn update_thread_title(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+    title: &str,
+) -> Result<Thread, ThreadServiceError> {
+    let trimmed = title.trim();
+    let final_title = if trimmed.is_empty() {
+        DEFAULT_THREAD_TITLE.to_string()
+    } else {
+        trimmed.chars().take(MAX_THREAD_TITLE_CHARS).collect()
+    };
+    let record = thread_storage::update_thread_title(pool, user_id, thread_id, &final_title).await?;
+    Ok(map_thread(record))
+}
+
 pub async fn update_thread_model(
     pool: &PgPool,
     user_id: Uuid,
