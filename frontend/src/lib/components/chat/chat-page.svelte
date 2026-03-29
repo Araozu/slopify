@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import {
 		ChatCircleIcon,
+		KeyIcon,
 		PaperPlaneRightIcon,
 		PlusIcon,
 		RobotIcon,
@@ -13,10 +14,12 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { threadKeys, threadsQueryOptions } from '$lib/queries/thread-query';
+	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { createThread, loadMessagesByThread, saveMessagesByThread } from '$lib/thread-client';
-	import type { AuthUser, Message, Thread } from '$lib/types';
+	import type { AuthUser, Message, OpenRouterApiKey, Thread } from '$lib/types';
 	import { cn } from '$lib/utils';
 	import { onMount, tick } from 'svelte';
 
@@ -35,7 +38,6 @@
 
 	let messagesByThread = $state<MessagesByThread>({});
 	let draft = $state('');
-	let apiKey = $state('');
 	let model = $state(DEFAULT_MODEL);
 	let isSending = $state(false);
 	let hasRequestedInitialThread = $state(false);
@@ -44,6 +46,12 @@
 	let currentUser = $derived(page.data.user as AuthUser);
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
+	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
+
+	const keys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
+	let selectedKeyId = $state<string | null>(null);
+	const selectedKey = $derived(keys.find((k) => k.id === selectedKeyId) ?? keys[0] ?? null);
+
 	const createThreadMutation = createMutation(() => ({
 		mutationFn: ({ title }: { title?: string; replaceState?: boolean }) => createThread(title),
 		onSuccess: async (newThread, variables) => {
@@ -187,7 +195,7 @@
 
 		const requestThreadId = activeThread.id;
 		const prompt = draft.trim();
-		const trimmedApiKey = apiKey.trim();
+		const trimmedApiKey = selectedKey?.apiKey.trim() ?? '';
 		const selectedModel = model.trim();
 
 		if (!prompt || !trimmedApiKey || !selectedModel || isSending) {
@@ -388,16 +396,63 @@
 
 		<footer class="p-6">
 			<div class="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-2 px-2">
-				<Input
-					bind:value={apiKey}
-					type="password"
-					placeholder="OpenRouter API key"
-					class="h-8 min-w-0 flex-1 border-border/60 bg-background/70 text-xs"
-					disabled={isSending || isBootstrapping || !activeThread}
-				/>
-				<span class="text-xs font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
-					>api key</span
-				>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger
+						class="flex h-8 min-w-0 flex-1 items-center justify-between gap-2 rounded-md border border-border/60 bg-background/70 px-3 text-left text-xs transition-all hover:bg-background/90 disabled:opacity-50"
+						disabled={isSending || isBootstrapping || !activeThread}
+					>
+						<div class="flex items-center gap-2 truncate">
+							<KeyIcon
+								size={12}
+								weight={selectedKey ? 'fill' : 'regular'}
+								class={selectedKey ? 'text-primary' : 'text-muted-foreground/40'}
+							/>
+							<span class={selectedKey ? 'text-foreground' : 'text-muted-foreground/40'}>
+								{selectedKey ? selectedKey.name : 'No keys saved'}
+							</span>
+						</div>
+						<span class="text-[9px] font-black tracking-widest text-muted-foreground/30 uppercase"
+							>key</span
+						>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="w-56 rounded-xl shadow-xl">
+						<DropdownMenu.Label
+							class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase"
+							>Select provider key</DropdownMenu.Label
+						>
+						<DropdownMenu.Separator />
+						{#if keys.length === 0}
+							<div class="px-2 py-3 text-center">
+								<p class="text-[11px] text-muted-foreground/60">No keys found</p>
+								<Button
+									variant="link"
+									class="mt-1 h-auto p-0 text-[10px] font-bold tracking-widest uppercase"
+									onclick={() => goto(resolve('/(main)/settings/keys'))}
+								>
+									Add one in settings
+								</Button>
+							</div>
+						{:else}
+							{#each keys as key (key.id)}
+								<DropdownMenu.Item
+									class="flex items-center justify-between rounded-lg py-2"
+									onclick={() => (selectedKeyId = key.id)}
+								>
+									<div class="flex flex-col gap-0.5">
+										<span class="text-xs font-bold">{key.name}</span>
+										<span class="font-mono text-[9px] text-muted-foreground/50"
+											>{key.apiKey.slice(0, 8)}••••</span
+										>
+									</div>
+									{#if selectedKey?.id === key.id}
+										<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
+									{/if}
+								</DropdownMenu.Item>
+							{/each}
+						{/if}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+
 				<Input
 					bind:value={model}
 					placeholder="openai/gpt-4o-mini"
@@ -426,7 +481,7 @@
 						isBootstrapping ||
 						!activeThread ||
 						!draft.trim() ||
-						!apiKey.trim() ||
+						!selectedKey ||
 						!model.trim()}
 					onclick={sendMessage}
 				>

@@ -24,107 +24,100 @@
 	);
 </script>
 
-<div
-	class="min-h-[calc(100vh-2rem)] bg-[radial-gradient(circle_at_top,theme(colors.primary/.12),transparent_30%),linear-gradient(180deg,theme(colors.background),theme(colors.muted/.3))] px-6 py-8 sm:px-8 lg:px-10"
->
-	<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
-		<section
-			class="overflow-hidden rounded-[2rem] border bg-card/90 shadow-xl shadow-primary/5 backdrop-blur-xl"
-		>
-			<div class="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
-				<div class="border-b bg-muted/40 p-8 lg:border-r lg:border-b-0 lg:p-10">
-					<p class="text-[11px] font-black tracking-[0.3em] text-primary uppercase">Profile</p>
-					<h1 class="mt-4 max-w-md text-4xl leading-tight font-semibold tracking-tight">
-						Your account, minus the drama.
-					</h1>
-					<p class="mt-4 max-w-lg text-sm leading-6 text-muted-foreground">
-						This is the plain-data version for now: who you are, what email owns the account, and
-						the stable user ID the backend hangs everything off.
-					</p>
-				</div>
-
-				<div class="flex flex-col justify-between gap-6 p-8 lg:p-10">
-					<div class="flex items-center gap-4">
-						<div
-							class="flex h-18 w-18 items-center justify-center rounded-[1.75rem] bg-primary text-2xl font-black text-primary-foreground shadow-lg shadow-primary/20"
-						>
-							{initials}
-						</div>
-						<div>
-							<p class="text-xs font-black tracking-[0.24em] text-muted-foreground uppercase">
-								Signed in as
-							</p>
-							<h2 class="mt-2 text-2xl font-semibold tracking-tight">{user.name}</h2>
-							<p class="mt-1 text-sm text-muted-foreground">{user.email}</p>
-						</div>
-					</div>
-
-					<div class="grid gap-3 sm:grid-cols-2">
-						<div class="rounded-[1.5rem] border bg-background/80 p-4">
-							<p class="text-[11px] font-black tracking-[0.24em] text-muted-foreground uppercase">
-								Data mode
-							</p>
-							<p class="mt-3 text-sm text-foreground/80">
-								Read only for now, so nothing here can smudge your account state.
-							</p>
-						</div>
-						<div class="rounded-[1.5rem] border bg-background/80 p-4">
-							<p class="text-[11px] font-black tracking-[0.24em] text-muted-foreground uppercase">
-								Connected
-							</p>
-							<p class="mt-3 text-sm text-foreground/80">
-								Your user record is the owner for threads, sessions, and OpenRouter keys.
-							</p>
-						</div>
-					</div>
-				</div>
+<div class="flex h-[calc(100vh-2rem)] min-h-0 w-full flex-col bg-background">
+	<header class="flex items-center border-b bg-background/20 px-6 py-1 backdrop-blur-xl">
+		<div class="flex items-center gap-2">
+			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+				<UserCircleIcon size={14} weight="fill" />
 			</div>
-		</section>
+			<h1 class="text-sm font-bold tracking-tight">Profile</h1>
+		</div>
+	</header>
 
-		{#if queryError}
-			<p
-				class="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-			>
-				{queryError}
-			</p>
-		{/if}
-
-		<section class="grid gap-4 md:grid-cols-3">
-			<div class="rounded-[1.75rem] border bg-card/90 p-5 shadow-sm">
-				<div class="flex items-center gap-3">
-					<div class="rounded-2xl bg-primary/10 p-2 text-primary">
-						<UserCircleIcon size={18} weight="fill" />
+	<div class="flex-1 overflow-y-auto">
+		<div class="mx-auto w-full max-w-3xl space-y-12 px-6 py-10">
+			<section class="space-y-6">
+				<div class="flex items-center gap-6">
+					<div
+						class="flex h-20 w-20 items-center justify-center rounded-[2rem] bg-primary text-3xl font-black text-primary-foreground shadow-lg shadow-primary/20"
+					>
+						{initials}
 					</div>
-					<p class="text-[11px] font-black tracking-[0.24em] text-muted-foreground uppercase">
-						Name
-					</p>
-				</div>
-				<p class="mt-4 text-lg font-semibold tracking-tight">{user.name}</p>
-			</div>
-
-			<div class="rounded-[1.75rem] border bg-card/90 p-5 shadow-sm">
-				<div class="flex items-center gap-3">
-					<div class="rounded-2xl bg-primary/10 p-2 text-primary">
-						<EnvelopeSimpleIcon size={18} weight="fill" />
+					<div class="space-y-1">
+						<p class="text-[10px] font-black tracking-[0.2em] text-muted-foreground/50 uppercase">
+							Account Owner
+						</p>
+						<h2 class="text-3xl font-bold tracking-tight">{user.name}</h2>
+						<p class="text-sm text-muted-foreground/60">{user.email}</p>
 					</div>
-					<p class="text-[11px] font-black tracking-[0.24em] text-muted-foreground uppercase">
-						Email
-					</p>
 				</div>
-				<p class="mt-4 text-lg font-semibold tracking-tight break-all">{user.email}</p>
-			</div>
 
-			<div class="rounded-[1.75rem] border bg-card/90 p-5 shadow-sm">
-				<div class="flex items-center gap-3">
-					<div class="rounded-2xl bg-primary/10 p-2 text-primary">
-						<FingerprintIcon size={18} weight="fill" />
+				<div class="grid gap-4 sm:grid-cols-2">
+					<div class="rounded-3xl border bg-muted/30 p-5 shadow-inner ring-1 ring-border/50">
+						<p class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
+							Data mode
+						</p>
+						<p class="mt-2 text-xs leading-relaxed text-foreground/60">
+							Read only for now. Your account state is locked to prevent accidental smudging.
+						</p>
 					</div>
-					<p class="text-[11px] font-black tracking-[0.24em] text-muted-foreground uppercase">
-						User ID
-					</p>
+					<div class="rounded-3xl border bg-muted/30 p-5 shadow-inner ring-1 ring-border/50">
+						<p class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
+							Connected
+						</p>
+						<p class="mt-2 text-xs leading-relaxed text-foreground/60">
+							Your record owns all threads, sessions, and provider keys.
+						</p>
+					</div>
 				</div>
-				<p class="mt-4 font-mono text-sm break-all text-foreground/80">{user.id}</p>
-			</div>
-		</section>
+			</section>
+
+			{#if queryError}
+				<p
+					class="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-xs font-medium text-destructive"
+				>
+					{queryError}
+				</p>
+			{/if}
+
+			<section class="space-y-4">
+				<h3 class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
+					Identity Details
+				</h3>
+				<div class="grid gap-3 md:grid-cols-3">
+					<div class="rounded-2xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
+						<div class="flex items-center gap-2 text-primary/60">
+							<UserCircleIcon size={16} weight="bold" />
+							<span class="text-[10px] font-black tracking-widest uppercase">Name</span>
+						</div>
+						<p class="mt-3 text-sm font-bold tracking-tight">{user.name}</p>
+					</div>
+
+					<div class="rounded-2xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
+						<div class="flex items-center gap-2 text-primary/60">
+							<EnvelopeSimpleIcon size={16} weight="bold" />
+							<span class="text-[10px] font-black tracking-widest uppercase">Email</span>
+						</div>
+						<p class="mt-3 truncate text-sm font-bold tracking-tight">{user.email}</p>
+					</div>
+
+					<div class="rounded-2xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
+						<div class="flex items-center gap-2 text-primary/60">
+							<FingerprintIcon size={16} weight="bold" />
+							<span class="text-[10px] font-black tracking-widest uppercase">User ID</span>
+						</div>
+						<p class="mt-3 font-mono text-[10px] text-muted-foreground/70">{user.id}</p>
+					</div>
+				</div>
+			</section>
+
+			<footer class="pt-8">
+				<p
+					class="text-center text-[10px] font-medium tracking-widest text-muted-foreground/30 uppercase"
+				>
+					Slopify identity system v1.0 • Stable and boring.
+				</p>
+			</footer>
+		</div>
 	</div>
 </div>

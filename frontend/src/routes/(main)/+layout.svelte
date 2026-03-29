@@ -53,12 +53,6 @@
 				<span class="inline-block font-bold">✨ Slopify ✨</span>
 			</a>
 			<a
-				href={resolve('/')}
-				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
-			>
-				Chat
-			</a>
-			<a
 				href={resolve('/(main)/profile')}
 				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
 			>
@@ -70,14 +64,6 @@
 			>
 				Keys
 			</a>
-			<!-- eslint-disable svelte/no-navigation-without-resolve -->
-			<a
-				href="/history"
-				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
-			>
-				History
-			</a>
-			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 		</nav>
 
 		<div class="flex items-center gap-3">
@@ -90,7 +76,7 @@
 					class="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
 				>
 					<Avatar.Root class="h-6 w-6">
-						<Avatar.Image src="https://github.com/shadcn.png" alt="@user" />
+						<Avatar.Image src="https://github.com/Araozu.png" alt="@user" />
 						<Avatar.Fallback>
 							<UserIcon size={14} />
 						</Avatar.Fallback>
