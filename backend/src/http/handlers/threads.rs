@@ -47,6 +47,10 @@ struct ApiError {
 impl From<ThreadServiceError> for ApiError {
     fn from(value: ThreadServiceError) -> Self {
         match value {
+            ThreadServiceError::NotFound => Self {
+                status: StatusCode::NOT_FOUND,
+                message: value.to_string(),
+            },
             ThreadServiceError::Storage(_) => Self {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 message: value.to_string(),

@@ -10,6 +10,7 @@ export interface Message {
 export interface Thread {
 	id: string;
 	title: string;
+	model?: string;
 }
 
 export interface ChatThread extends Thread {

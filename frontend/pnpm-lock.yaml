@@ -21,6 +21,9 @@ importers:
       mode-watcher:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.55.0)
+      svelte-markdown:
+        specifier: ^0.4.1
+        version: 0.4.1(svelte@5.55.0)
     devDependencies:
       '@eslint/compat':
         specifier: latest
@@ -104,7 +107,7 @@ importers:
         specifier: ^8.57.2
         version: 8.57.2(eslint@10.1.0(jiti@2.6.1))(typescript@5.9.3)
       vite:
-        specifier: npm:@voidzero-dev/vite-plus-core@^0.1.14
+        specifier: npm:@voidzero-dev/vite-plus-core@latest
         version: '@voidzero-dev/vite-plus-core@0.1.14(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3)'
       vite-plus:
         specifier: latest
@@ -819,6 +822,9 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
+  '@types/marked@5.0.2':
+    resolution: {integrity: sha512-OucS4KMHhFzhz27KxmWg7J+kIYqyqoW5kdIEI319hqARQQUTqhao3M/F+uFnDXD0Rg72iDDZxZNxq5gvctmLlg==}
+
   '@types/node@24.12.0':
     resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
 
@@ -1412,6 +1418,11 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
+  marked@5.1.2:
+    resolution: {integrity: sha512-ahRPGXJpjMjwSOlBoTMZAK7ATXkli5qCPxZ21TG44rx1KEo44bii4ekgTDQPNRQ4Kh7JMb9Ub1PVk1NxRSsorg==}
+    engines: {node: '>= 16'}
+    hasBin: true
+
   minimatch@10.2.4:
     resolution: {integrity: sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg==}
     engines: {node: 18 || 20 || >=22}
@@ -1692,6 +1703,11 @@ packages:
     peerDependenciesMeta:
       svelte:
         optional: true
+
+  svelte-markdown@0.4.1:
+    resolution: {integrity: sha512-pOlLY6EruKJaWI9my/2bKX8PdTeP5CM0s4VMmwmC2prlOkjAf+AOmTM4wW/l19Y6WZ87YmP8+ZCJCCwBChWjYw==}
+    peerDependencies:
+      svelte: ^4.0.0
 
   svelte-toolbelt@0.10.6:
     resolution: {integrity: sha512-YWuX+RE+CnWYx09yseAe4ZVMM7e7GRFZM6OYWpBKOb++s+SQ8RBIMMe+Bs/CznBMc0QPLjr+vDBxTAkozXsFXQ==}
@@ -2289,6 +2305,8 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
+  '@types/marked@5.0.2': {}
+
   '@types/node@24.12.0':
     dependencies:
       undici-types: 7.16.0
@@ -2832,6 +2850,8 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  marked@5.1.2: {}
+
   minimatch@10.2.4:
     dependencies:
       brace-expansion: 5.0.5
@@ -3071,6 +3091,12 @@ snapshots:
       postcss-selector-parser: 7.1.1
       semver: 7.7.4
     optionalDependencies:
+      svelte: 5.55.0
+
+  svelte-markdown@0.4.1(svelte@5.55.0):
+    dependencies:
+      '@types/marked': 5.0.2
+      marked: 5.1.2
       svelte: 5.55.0
 
   svelte-toolbelt@0.10.6(@sveltejs/kit@2.55.0(@sveltejs/vite-plugin-svelte@6.2.4(@voidzero-dev/vite-plus-core@0.1.14(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(svelte@5.55.0))(@voidzero-dev/vite-plus-core@0.1.14(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(svelte@5.55.0)(typescript@5.9.3))(svelte@5.55.0):

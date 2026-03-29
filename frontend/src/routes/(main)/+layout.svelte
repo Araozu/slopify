@@ -14,7 +14,6 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { logoutUser } from '$lib/auth-client';
 	import { currentUserQueryOptions } from '$lib/queries/auth-query';
-	import { clearMessagesByThread } from '$lib/thread-client';
 	import type { AuthUser } from '$lib/types';
 	import ModeToggle from '$lib/components/mode-toggle/mode-toggle.svelte';
 	import ThemeToggle from '$lib/components/theme-toggle/theme-toggle.svelte';
@@ -38,7 +37,6 @@
 
 	async function handleLogout() {
 		await logoutUser();
-		clearMessagesByThread(user.id);
 		await invalidateAll();
 		await goto(resolve('/auth'), { replaceState: true });
 	}

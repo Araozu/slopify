@@ -16,7 +16,8 @@
 	"dependencies": {
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@tanstack/svelte-query": "^6.1.10",
-		"mode-watcher": "^1.1.0"
+		"mode-watcher": "^1.1.0",
+		"svelte-markdown": "^0.4.1"
 	},
 	"devDependencies": {
 		"@eslint/compat": "latest",

@@ -45,6 +45,12 @@ fn api_router() -> Router<AppState> {
                 .options(threads::thread_options)
                 .layer(chat_cors_layer()),
         )
+        .route(
+            "/v1/threads/{thread_id}/messages",
+            get(chat::list_thread_messages)
+                .options(chat::chat_options)
+                .layer(chat_cors_layer()),
+        )
         .route("/v1/streams/hello", get(streams::hello_stream))
 }
 

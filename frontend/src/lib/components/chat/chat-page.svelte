@@ -2,7 +2,6 @@
 	import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
 	import {
 		ChatCircleIcon,
 		KeyIcon,
@@ -11,17 +10,22 @@
 		RobotIcon,
 		UserIcon
 	} from 'phosphor-svelte';
+	import SvelteMarkdown from 'svelte-markdown';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { threadKeys, threadsQueryOptions } from '$lib/queries/thread-query';
+	import {
+		threadKeys,
+		threadMessagesQueryOptions,
+		threadsQueryOptions
+	} from '$lib/queries/thread-query';
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import { createThread, loadMessagesByThread, saveMessagesByThread } from '$lib/thread-client';
-	import type { AuthUser, Message, OpenRouterApiKey, Thread } from '$lib/types';
+	import { createThread } from '$lib/thread-client';
+	import type { Message, OpenRouterApiKey, Thread } from '$lib/types';
 	import { cn } from '$lib/utils';
-	import { onMount, tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 
 	type MessagesByThread = Record<string, Message[]>;
 
@@ -41,9 +45,10 @@
 	let model = $state(DEFAULT_MODEL);
 	let isSending = $state(false);
 	let hasRequestedInitialThread = $state(false);
+	let showRaw = $state(false);
+	let rawResponse = $state('');
 
 	let viewportRef: HTMLElement | null = $state(null);
-	let currentUser = $derived(page.data.user as AuthUser);
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
@@ -67,10 +72,25 @@
 
 	let threads = $derived((threadsQuery.data ?? []) as Thread[]);
 	let activeThread = $derived(threads.find((thread) => thread.id === threadId) ?? null);
+	const threadMessagesQuery = createQuery(() => ({
+		...threadMessagesQueryOptions(threadId),
+		enabled: Boolean(threadId && activeThread)
+	}));
 	let messages = $derived(messagesByThread[threadId] ?? []);
+
+	$effect(() => {
+		if (activeThread?.model) {
+			model = activeThread.model;
+		}
+	});
 	let threadTitle = $derived(activeThread ? getThreadTitle(activeThread, messages) : 'Thread');
 	let messageCount = $derived(messages.length);
 	let isCreatingThread = $derived(createThreadMutation.isPending);
+	let isLoadingMessages = $derived(
+		Boolean(threadId && activeThread) &&
+			threadMessagesQuery.isPending &&
+			!(threadId in messagesByThread)
+	);
 	let isBootstrapping = $derived(
 		threadsQuery.isPending || (threads.length === 0 && isCreatingThread)
 	);
@@ -83,6 +103,11 @@
 		const mutationError = createThreadMutation.error;
 		if (mutationError instanceof Error) {
 			return mutationError.message;
+		}
+
+		const messageError = threadMessagesQuery.error;
+		if (messageError instanceof Error) {
+			return messageError.message;
 		}
 
 		return '';
@@ -100,10 +125,6 @@
 		})
 	);
 
-	onMount(() => {
-		messagesByThread = loadMessagesByThread(currentUser.id);
-	});
-
 	$effect(() => {
 		if (
 			threadsQuery.isSuccess &&
@@ -120,6 +141,24 @@
 		if (!isBootstrapping && threads.length > 0 && !activeThread) {
 			void gotoThread(threads[0].id, true);
 		}
+	});
+
+	$effect(() => {
+		if (!threadId || !threadMessagesQuery.isSuccess) {
+			return;
+		}
+
+		const fetchedMessages = (threadMessagesQuery.data ?? []) as Message[];
+		const currentMessagesByThread = untrack(() => messagesByThread);
+		const currentMessages = currentMessagesByThread[threadId];
+		if (currentMessages === fetchedMessages) {
+			return;
+		}
+
+		messagesByThread = {
+			...currentMessagesByThread,
+			[threadId]: fetchedMessages
+		};
 	});
 
 	function scrollToLatest(behavior: ScrollBehavior = 'auto') {
@@ -145,7 +184,7 @@
 			id: crypto.randomUUID(),
 			role,
 			content,
-			timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+			timestamp: new Date().toISOString()
 		};
 	}
 
@@ -167,13 +206,20 @@
 	}
 
 	function updateThreadMessages(targetThreadId: string, nextMessages: Message[]) {
-		const nextMessagesByThread = {
+		queryClient.setQueryData<Message[]>(threadKeys.messages(targetThreadId), nextMessages);
+		messagesByThread = {
 			...messagesByThread,
 			[targetThreadId]: nextMessages
 		};
+	}
 
-		messagesByThread = nextMessagesByThread;
-		saveMessagesByThread(currentUser.id, nextMessagesByThread);
+	function formatMessageTimestamp(timestamp: string) {
+		const date = new Date(timestamp);
+		if (Number.isNaN(date.getTime())) {
+			return timestamp;
+		}
+
+		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
 
 	async function gotoThread(id: string, replaceState = false) {
@@ -214,13 +260,26 @@
 					authorization: `Bearer ${trimmedApiKey}`,
 					'content-type': 'application/json'
 				},
-				body: JSON.stringify({ prompt, model: selectedModel })
+				body: JSON.stringify({ prompt, model: selectedModel, thread_id: requestThreadId })
 			});
 
-			const payload = (await response.json()) as { content?: string; error?: string };
+			const payload = (await response.json()) as {
+				content?: string;
+				error?: string;
+				model?: string;
+			};
+			rawResponse = JSON.stringify(payload, null, 2);
 
 			if (!response.ok || !payload.content) {
 				throw new Error(payload.error ?? 'The model returned an empty response.');
+			}
+
+			if (payload.model && !activeThread?.model) {
+				queryClient.setQueryData<Thread[]>(threadKeys.all, (currentThreads) =>
+					(currentThreads ?? []).map((t) =>
+						t.id === requestThreadId ? { ...t, model: payload.model } : t
+					)
+				);
 			}
 
 			updateThreadMessages(requestThreadId, [
@@ -235,6 +294,7 @@
 			]);
 		} finally {
 			isSending = false;
+			void queryClient.invalidateQueries({ queryKey: threadKeys.all });
 		}
 	}
 
@@ -312,10 +372,31 @@
 				</div>
 				<h1 class="text-sm font-bold tracking-tight">{threadTitle}</h1>
 			</div>
+			<div class="ml-auto flex items-center gap-2">
+				{#if rawResponse}
+					<Button
+						variant="ghost"
+						size="xs"
+						class="h-7 px-2 text-[10px] font-bold tracking-widest uppercase"
+						onclick={() => (showRaw = !showRaw)}
+					>
+						{showRaw ? 'Hide Raw' : 'Show Raw'}
+					</Button>
+				{/if}
+			</div>
 		</header>
 
 		<ScrollArea.Root class="min-h-0 flex-1" bind:viewportRef>
 			<div class="flex min-h-full flex-col justify-end">
+				{#if showRaw && rawResponse}
+					<div class="mx-auto w-full max-w-3xl px-6 py-4">
+						<pre
+							class="overflow-auto rounded-xl border bg-muted/50 p-4 font-mono text-[10px] text-muted-foreground"
+						>
+							{rawResponse}
+						</pre>
+					</div>
+				{/if}
 				{#if loadError}
 					<div class="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 py-10">
 						<p
@@ -324,9 +405,11 @@
 							{loadError}
 						</p>
 					</div>
-				{:else if isBootstrapping}
+				{:else if isBootstrapping || isLoadingMessages}
 					<div class="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 py-10">
-						<p class="text-sm text-muted-foreground">Loading threads...</p>
+						<p class="text-sm text-muted-foreground">
+							{isLoadingMessages ? 'Loading messages...' : 'Loading threads...'}
+						</p>
 					</div>
 				{:else if messages.length === 0}
 					<div class="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 py-10">
@@ -376,15 +459,23 @@
 											'rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1',
 											message.role === 'user'
 												? 'bg-primary text-primary-foreground ring-primary/20'
-												: 'bg-background/80 font-mono text-xs ring-border backdrop-blur-md'
+												: 'prose prose-sm max-w-none bg-background/80 font-mono text-xs ring-border backdrop-blur-md prose-neutral dark:prose-invert'
 										)}
 									>
-										{message.content}
+										{#if message.role === 'assistant'}
+											<div
+												class="prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-li:text-foreground"
+											>
+												<SvelteMarkdown source={message.content} />
+											</div>
+										{:else}
+											{message.content}
+										{/if}
 									</div>
 									<span
 										class="px-1 text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
 									>
-										{message.timestamp}
+										{formatMessageTimestamp(message.timestamp)}
 									</span>
 								</div>
 							</div>
@@ -411,7 +502,7 @@
 								{selectedKey ? selectedKey.name : 'No keys saved'}
 							</span>
 						</div>
-						<span class="text-[9px] font-black tracking-widest text-muted-foreground/30 uppercase"
+						<span class="text-[10px] font-black tracking-widest text-muted-foreground/30 uppercase"
 							>key</span
 						>
 					</DropdownMenu.Trigger>
@@ -459,7 +550,7 @@
 					class="h-8 max-w-56 border-border/60 bg-background/70 text-xs"
 					disabled={isSending || isBootstrapping || !activeThread}
 				/>
-				<span class="text-xs font-bold tracking-[0.15em] text-muted-foreground/40 uppercase"
+				<span class="text-[10px] font-black tracking-widest text-muted-foreground/30 uppercase"
 					>model</span
 				>
 			</div>
