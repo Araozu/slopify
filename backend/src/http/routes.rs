@@ -46,6 +46,12 @@ fn api_router() -> Router<AppState> {
                 .layer(chat_cors_layer()),
         )
         .route(
+            "/v1/threads/{thread_id}",
+            axum::routing::delete(threads::delete_thread)
+                .options(threads::thread_options)
+                .layer(chat_cors_layer()),
+        )
+        .route(
             "/v1/threads/{thread_id}/messages",
             get(chat::list_thread_messages)
                 .options(chat::chat_options)
@@ -57,6 +63,6 @@ fn api_router() -> Router<AppState> {
 fn chat_cors_layer() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::COOKIE])
 }

@@ -1,10 +1,11 @@
 use axum::{
     Json,
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
+use uuid::Uuid;
 
 use crate::{
     http::auth::AuthSession,
@@ -39,6 +40,22 @@ pub async fn thread_options() -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
+pub async fn delete_thread(
+    State(state): State<AppState>,
+    session: AuthSession,
+    Path(thread_id): Path<String>,
+) -> Response {
+    let thread_id = match parse_thread_id(thread_id) {
+        Ok(thread_id) => thread_id,
+        Err(error) => return error.into_response(),
+    };
+
+    match thread_service::delete_thread(&state.db_pool, session.user_id, thread_id).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => ApiError::from(error).into_response(),
+    }
+}
+
 struct ApiError {
     status: StatusCode,
     message: String,
@@ -69,4 +86,11 @@ impl IntoResponse for ApiError {
         )
             .into_response()
     }
+}
+
+fn parse_thread_id(thread_id: String) -> Result<Uuid, ApiError> {
+    Uuid::parse_str(&thread_id).map_err(|_| ApiError {
+        status: StatusCode::BAD_REQUEST,
+        message: "Enter a valid thread ID.".to_string(),
+    })
 }

@@ -65,6 +65,15 @@ pub async fn update_thread_model(
     Ok(())
 }
 
+pub async fn delete_thread(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+) -> Result<(), ThreadServiceError> {
+    thread_storage::delete_thread(pool, user_id, thread_id).await?;
+    Ok(())
+}
+
 pub async fn save_message(
     pool: &PgPool,
     user_id: Uuid,

@@ -68,6 +68,29 @@ pub async fn update_thread_model(
     Ok(())
 }
 
+pub async fn delete_thread(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    let result = sqlx::query(
+        r#"
+        DELETE FROM threads
+        WHERE id = $1 AND user_id = $2
+        "#,
+    )
+    .bind(thread_id)
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(sqlx::Error::RowNotFound);
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Clone, FromRow)]
 pub struct MessageRecord {
     pub id: Uuid,

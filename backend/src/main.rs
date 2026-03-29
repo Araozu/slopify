@@ -15,6 +15,7 @@ use config::AppConfig;
 
 #[tokio::main]
 async fn main() {
+    dotenvy::dotenv().ok();
     let config = AppConfig::from_env();
     let pool = db::pool::create_pool(config.database_url(), config.database_max_connections())
         .await

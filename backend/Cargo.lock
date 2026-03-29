@@ -165,6 +165,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "chrono",
+ "dotenvy",
  "futures-core",
  "futures-util",
  "reqwest",
