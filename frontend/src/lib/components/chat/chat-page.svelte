@@ -16,8 +16,6 @@
 		type StreamChatEvent
 	} from '$lib/thread-client';
 	import type { Message, OpenRouterApiKey, Thread } from '$lib/types';
-	import { showAssistantStreamingText } from '$lib/stores/streaming-preference';
-	import { get } from 'svelte/store';
 	import { tick, untrack } from 'svelte';
 	import ChatComposer from './chat-composer.svelte';
 	import ChatHeader from './chat-header.svelte';
@@ -55,7 +53,7 @@
 	let viewportRef: HTMLElement | null = $state(null);
 	let flushTimer: ReturnType<typeof setTimeout> | null = null;
 	let sidebarCollapsed = $state(false);
-	let optimisticAssistantPlaceholderId = $state<string | null>(null);
+	let initialScrollDoneForThreadId = $state<string | null>(null);
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
@@ -238,6 +236,37 @@
 			viewportRef.scrollHeight - (viewportRef.scrollTop + viewportRef.clientHeight);
 		return distanceToBottom <= threshold;
 	}
+
+	$effect(() => {
+		const tid = threadId;
+		if (!tid || !activeThread || isBootstrapping || isLoadingMessages) {
+			return;
+		}
+		if (initialScrollDoneForThreadId === tid) {
+			return;
+		}
+
+		void tick().then(() => {
+			if (tid !== threadId) {
+				return;
+			}
+			scrollToLatest();
+			initialScrollDoneForThreadId = tid;
+		});
+	});
+
+	$effect(() => {
+		if (!isSending) {
+			return;
+		}
+		const tid = threadId;
+		void tick().then(() => {
+			if (tid !== threadId) {
+				return;
+			}
+			scrollToLatest('smooth');
+		});
+	});
 
 	function createMessage(role: Message['role'], content: string): Message {
 		const trimmedContent = content.trim();
@@ -484,25 +513,7 @@
 			...createMessage('user', prompt),
 			deliveryStatus: 'sent'
 		};
-		let nextMessages: Message[] = [...messages, userMessage];
-		if (!get(showAssistantStreamingText)) {
-			const placeholderId = crypto.randomUUID();
-			optimisticAssistantPlaceholderId = placeholderId;
-			nextMessages = [
-				...nextMessages,
-				{
-					id: placeholderId,
-					role: 'assistant',
-					status: 'streaming',
-					parts: [],
-					content: '',
-					timestamp: new Date().toISOString()
-				}
-			];
-		} else {
-			optimisticAssistantPlaceholderId = null;
-		}
-		updateThreadMessages(requestThreadId, nextMessages);
+		updateThreadMessages(requestThreadId, [...messages, userMessage]);
 		draft = '';
 		isSending = true;
 		streamEvents = [];
@@ -524,25 +535,6 @@
 								...currentMessage,
 								deliveryStatus: 'delivered'
 							}));
-							const placeholderId = optimisticAssistantPlaceholderId;
-							if (placeholderId) {
-								const threadMessages = messagesByThread[requestThreadId] ?? [];
-								const placeholderIndex = threadMessages.findIndex(
-									(existing) => existing.id === placeholderId
-								);
-								if (placeholderIndex !== -1) {
-									const merged = [...threadMessages];
-									merged[placeholderIndex] = {
-										...message,
-										status: 'streaming'
-									};
-									updateThreadMessages(requestThreadId, merged.map(normalizeMessage));
-									optimisticAssistantPlaceholderId = null;
-									pushStreamEvent(event.type, `assistant ${message.id} started`);
-									break;
-								}
-							}
-							optimisticAssistantPlaceholderId = null;
 							upsertAssistantMessage(requestThreadId, {
 								...message,
 								status: 'streaming'
@@ -621,28 +613,13 @@
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to send prompt.';
 			pushStreamEvent('message_failed', `request failed: ${message}`);
-			const placeholderId = optimisticAssistantPlaceholderId;
-			optimisticAssistantPlaceholderId = null;
-			const current = messagesByThread[requestThreadId] ?? [];
-			const base = placeholderId ? current.filter((entry) => entry.id !== placeholderId) : current;
 			updateThreadMessages(requestThreadId, [
-				...base,
+				...(messagesByThread[requestThreadId] ?? []),
 				createMessage('assistant', `Error: ${message}`)
 			]);
 		} finally {
 			flushPendingStreamUpdates();
 			isSending = false;
-			const placeholderId = optimisticAssistantPlaceholderId;
-			optimisticAssistantPlaceholderId = null;
-			if (placeholderId) {
-				const current = messagesByThread[requestThreadId] ?? [];
-				if (current.some((entry) => entry.id === placeholderId)) {
-					updateThreadMessages(
-						requestThreadId,
-						current.filter((entry) => entry.id !== placeholderId)
-					);
-				}
-			}
 			void queryClient.invalidateQueries({ queryKey: threadKeys.all });
 		}
 	}
