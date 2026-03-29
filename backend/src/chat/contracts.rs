@@ -10,6 +10,24 @@ pub enum ChatRole {
     Tool,
 }
 
+impl ChatRole {
+    pub fn parse(input: &str) -> Option<Self> {
+        match input {
+            "system" => Some(Self::System),
+            "user" => Some(Self::User),
+            "assistant" => Some(Self::Assistant),
+            "tool" => Some(Self::Tool),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PromptMessage {
+    pub role: ChatRole,
+    pub content: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ChatMessageStatus {
@@ -29,6 +47,7 @@ pub struct ProviderDescriptor {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ClientChatPart {
     Text { text: String },
+    Reasoning { text: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,7 +81,11 @@ pub enum ClientChatEvent {
     MessageStarted {
         message: ClientChatMessage,
     },
-    MessageDelta {
+    TextDelta {
+        message_id: String,
+        delta: String,
+    },
+    ReasoningDelta {
         message_id: String,
         delta: String,
     },

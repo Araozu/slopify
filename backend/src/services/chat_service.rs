@@ -1,6 +1,11 @@
+use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::Client;
+use serde_json::Value;
 
-use crate::providers::openai_compatible::{self, ProviderChatCompletion};
+use crate::{
+    chat::contracts::PromptMessage,
+    providers::openai_compatible::{self, ProviderStreamEvent},
+};
 
 #[derive(Debug)]
 pub enum ChatServiceError {
@@ -30,19 +35,51 @@ impl From<openai_compatible::OpenAiCompatibleError> for ChatServiceError {
 }
 
 #[derive(Debug, Clone)]
-pub struct PromptCompletion {
-    pub content: String,
-    pub model: String,
-    pub provider: &'static str,
-    pub finish_reason: Option<String>,
+pub enum ChatServiceStreamEvent {
+    TextDelta(String),
+    ReasoningDelta(String),
+    Completed {
+        model: String,
+        finish_reason: Option<String>,
+        vendor_metadata: Value,
+    },
 }
 
-pub async fn complete_prompt(
+pub async fn stream_prompt(
     client: &Client,
     prompt: String,
+    messages: Vec<PromptMessage>,
     model: String,
     authorization: Option<&str>,
-) -> Result<PromptCompletion, ChatServiceError> {
+) -> Result<BoxStream<'static, Result<ChatServiceStreamEvent, ChatServiceError>>, ChatServiceError> {
+    let (_trimmed_prompt, trimmed_model, api_key) = validate_request(&prompt, &model, authorization)?;
+    let stream = openai_compatible::stream_prompt(client, &messages, trimmed_model, api_key).await?;
+
+    let mapped_stream = stream.map(|event| match event {
+        Ok(ProviderStreamEvent::TextDelta(delta)) => Ok(ChatServiceStreamEvent::TextDelta(delta)),
+        Ok(ProviderStreamEvent::ReasoningDelta(delta)) => {
+            Ok(ChatServiceStreamEvent::ReasoningDelta(delta))
+        }
+        Ok(ProviderStreamEvent::Completed {
+            model,
+            finish_reason,
+            vendor_metadata,
+        }) => Ok(ChatServiceStreamEvent::Completed {
+            model,
+            finish_reason,
+            vendor_metadata,
+        }),
+        Err(error) => Err(ChatServiceError::Provider(error)),
+    });
+
+    Ok(Box::pin(mapped_stream))
+}
+
+fn validate_request<'a>(
+    prompt: &'a str,
+    model: &'a str,
+    authorization: Option<&'a str>,
+) -> Result<(&'a str, &'a str, &'a str), ChatServiceError> {
     let trimmed_prompt = prompt.trim();
     if trimmed_prompt.is_empty() {
         return Err(ChatServiceError::InvalidPrompt);
@@ -62,16 +99,5 @@ pub async fn complete_prompt(
         .filter(|value| !value.is_empty())
         .ok_or(ChatServiceError::MissingApiKey)?;
 
-    let ProviderChatCompletion {
-        content,
-        model,
-        finish_reason,
-    } = openai_compatible::complete_prompt(client, trimmed_prompt, trimmed_model, api_key).await?;
-
-    Ok(PromptCompletion {
-        content,
-        model,
-        provider: "openrouter",
-        finish_reason,
-    })
+    Ok((trimmed_prompt, trimmed_model, api_key))
 }

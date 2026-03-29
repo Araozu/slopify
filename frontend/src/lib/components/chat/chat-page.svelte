@@ -22,7 +22,7 @@
 	} from '$lib/queries/thread-query';
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import { createThread } from '$lib/thread-client';
+	import { createThread, streamChatCompletion, type StreamChatEvent } from '$lib/thread-client';
 	import type { Message, OpenRouterApiKey, Thread } from '$lib/types';
 	import { cn } from '$lib/utils';
 	import { tick, untrack } from 'svelte';
@@ -33,9 +33,10 @@
 		threadId: string;
 	}
 
-	const BACKEND_CHAT_ENDPOINT = '/api/v1/chat/completions';
 	const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 	const DEFAULT_THREAD_TITLE = 'New thread';
+	const STREAM_LOG_LIMIT = 100;
+	const STREAM_FLUSH_INTERVAL_MS = 50;
 
 	let { threadId }: Props = $props();
 	const queryClient = useQueryClient();
@@ -45,10 +46,15 @@
 	let model = $state(DEFAULT_MODEL);
 	let isSending = $state(false);
 	let hasRequestedInitialThread = $state(false);
-	let showRaw = $state(false);
-	let rawResponse = $state('');
+	let streamEvents = $state<
+		Array<{ id: string; timestamp: string; type: StreamChatEvent['type']; detail: string }>
+	>([]);
+	let pendingStreamUpdates = $state<
+		Record<string, { threadId: string; messageId: string; text: string; reasoning: string }>
+	>({});
 
 	let viewportRef: HTMLElement | null = $state(null);
+	let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
@@ -84,7 +90,15 @@
 		}
 	});
 	let threadTitle = $derived(activeThread ? getThreadTitle(activeThread, messages) : 'Thread');
-	let messageCount = $derived(messages.length);
+	let messageFlowSignature = $derived(
+		messages
+			.map((message) => {
+				const text = getMessageText(message);
+				const reasoning = getMessageReasoning(message);
+				return `${message.id}:${message.status}:${text.length}:${reasoning.length}`;
+			})
+			.join('|')
+	);
 	let isCreatingThread = $derived(createThreadMutation.isPending);
 	let isLoadingMessages = $derived(
 		Boolean(threadId && activeThread) &&
@@ -115,11 +129,12 @@
 	let chatThreads = $derived(
 		threads.map((thread) => {
 			const threadMessages = messagesByThread[thread.id] ?? [];
+			const lastMessage = threadMessages.at(-1);
 
 			return {
 				...thread,
 				title: getThreadTitle(thread, threadMessages),
-				lastMessage: threadMessages.at(-1)?.content ?? 'No messages yet',
+				lastMessage: lastMessage ? getMessageText(lastMessage) : 'No messages yet',
 				messages: threadMessages
 			};
 		})
@@ -148,7 +163,7 @@
 			return;
 		}
 
-		const fetchedMessages = (threadMessagesQuery.data ?? []) as Message[];
+		const fetchedMessages = ((threadMessagesQuery.data ?? []) as Message[]).map(normalizeMessage);
 		const currentMessagesByThread = untrack(() => messagesByThread);
 		const currentMessages = currentMessagesByThread[threadId];
 		if (currentMessages === fetchedMessages) {
@@ -172,18 +187,22 @@
 		});
 	}
 
-	function scrollToMessage(id: string) {
-		const element = document.getElementById(id);
-		if (element && viewportRef) {
-			element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	function isNearBottom(threshold = 120) {
+		if (!viewportRef) {
+			return true;
 		}
+		const distanceToBottom = viewportRef.scrollHeight - (viewportRef.scrollTop + viewportRef.clientHeight);
+		return distanceToBottom <= threshold;
 	}
 
 	function createMessage(role: Message['role'], content: string): Message {
+		const trimmedContent = content.trim();
 		return {
 			id: crypto.randomUUID(),
 			role,
-			content,
+			status: 'completed',
+			parts: trimmedContent ? [{ kind: 'text', text: trimmedContent }] : [],
+			content: trimmedContent,
 			timestamp: new Date().toISOString()
 		};
 	}
@@ -202,7 +221,7 @@
 		}
 
 		const firstUserMessage = threadMessages.find((message) => message.role === 'user');
-		return firstUserMessage ? truncateText(firstUserMessage.content, 36) : thread.title;
+		return firstUserMessage ? truncateText(getMessageText(firstUserMessage), 36) : thread.title;
 	}
 
 	function updateThreadMessages(targetThreadId: string, nextMessages: Message[]) {
@@ -211,6 +230,168 @@
 			...messagesByThread,
 			[targetThreadId]: nextMessages
 		};
+	}
+
+	function normalizeMessage(message: Message): Message {
+		const status = message.status ?? 'completed';
+		const incomingParts = Array.isArray(message.parts) ? message.parts : [];
+		const fallbackContent = typeof message.content === 'string' ? message.content : '';
+		const normalizedParts =
+			incomingParts.length > 0
+				? incomingParts
+				: fallbackContent
+					? [{ kind: 'text' as const, text: fallbackContent }]
+					: [];
+		const content = normalizedParts
+			.filter((part) => part.kind === 'text')
+			.map((part) => part.text)
+			.join('');
+
+		return {
+			...message,
+			status,
+			parts: normalizedParts,
+			content: content || fallbackContent
+		};
+	}
+
+	function getMessageText(message: Message) {
+		const text = (message.parts ?? [])
+			.filter((part) => part.kind === 'text')
+			.map((part) => part.text)
+			.join('');
+		return text || message.content || '';
+	}
+
+	function getMessageReasoning(message: Message) {
+		return (message.parts ?? [])
+			.filter((part) => part.kind === 'reasoning')
+			.map((part) => part.text)
+			.join('');
+	}
+
+	function pushStreamEvent(type: StreamChatEvent['type'], detail: string) {
+		const nextEvent = {
+			id: crypto.randomUUID(),
+			timestamp: new Date().toISOString(),
+			type,
+			detail
+		};
+
+		streamEvents = [...streamEvents, nextEvent].slice(-STREAM_LOG_LIMIT);
+	}
+
+	function upsertAssistantMessage(targetThreadId: string, message: Message) {
+		const threadMessages = messagesByThread[targetThreadId] ?? [];
+		const normalized = normalizeMessage(message);
+		const index = threadMessages.findIndex((existing) => existing.id === normalized.id);
+		if (index === -1) {
+			updateThreadMessages(targetThreadId, [...threadMessages, normalized]);
+			return;
+		}
+
+		const nextMessages = [...threadMessages];
+		nextMessages[index] = normalized;
+		updateThreadMessages(targetThreadId, nextMessages);
+	}
+
+	function patchAssistantMessage(
+		targetThreadId: string,
+		messageId: string,
+		update: (message: Message) => Message
+	) {
+		const threadMessages = messagesByThread[targetThreadId] ?? [];
+		const index = threadMessages.findIndex((message) => message.id === messageId);
+		if (index === -1) {
+			return;
+		}
+
+		const nextMessages = [...threadMessages];
+		nextMessages[index] = normalizeMessage(update(nextMessages[index]));
+		updateThreadMessages(targetThreadId, nextMessages);
+	}
+
+	function queueStreamDelta(
+		targetThreadId: string,
+		messageId: string,
+		kind: 'text' | 'reasoning',
+		delta: string
+	) {
+		const updateKey = `${targetThreadId}:${messageId}`;
+		const current = pendingStreamUpdates[updateKey] ?? {
+			threadId: targetThreadId,
+			messageId,
+			text: '',
+			reasoning: ''
+		};
+		pendingStreamUpdates = {
+			...pendingStreamUpdates,
+			[updateKey]: {
+				...current,
+				[kind]: current[kind] + delta
+			}
+		};
+
+		if (flushTimer) {
+			return;
+		}
+
+		flushTimer = setTimeout(() => {
+			flushTimer = null;
+			flushPendingStreamUpdates();
+		}, STREAM_FLUSH_INTERVAL_MS);
+	}
+
+	function flushPendingStreamUpdates() {
+		const updates = pendingStreamUpdates;
+		const updateEntries = Object.entries(updates);
+		if (updateEntries.length === 0) {
+			return;
+		}
+
+		pendingStreamUpdates = {};
+
+		for (const [, update] of updateEntries) {
+			patchAssistantMessage(update.threadId, update.messageId, (message) => {
+				const previousParts = Array.isArray(message.parts) ? [...message.parts] : [];
+				const textPartIndex = previousParts.findIndex((part) => part.kind === 'text');
+				const reasoningPartIndex = previousParts.findIndex((part) => part.kind === 'reasoning');
+
+				if (update.text) {
+					if (textPartIndex === -1) {
+						previousParts.push({ kind: 'text', text: update.text });
+					} else {
+						previousParts[textPartIndex] = {
+							kind: 'text',
+							text: previousParts[textPartIndex].text + update.text
+						};
+					}
+				}
+
+				if (update.reasoning) {
+					if (reasoningPartIndex === -1) {
+						previousParts.push({ kind: 'reasoning', text: update.reasoning });
+					} else {
+						previousParts[reasoningPartIndex] = {
+							kind: 'reasoning',
+							text: previousParts[reasoningPartIndex].text + update.reasoning
+						};
+					}
+				}
+
+				const content = previousParts
+					.filter((part) => part.kind === 'text')
+					.map((part) => part.text)
+					.join('');
+
+				return {
+					...message,
+					status: 'streaming',
+					parts: previousParts,
+					content
+				};
+			});
+		}
 	}
 
 	function formatMessageTimestamp(timestamp: string) {
@@ -252,47 +433,102 @@
 		updateThreadMessages(requestThreadId, nextMessages);
 		draft = '';
 		isSending = true;
+		streamEvents = [];
+		pendingStreamUpdates = {};
 
 		try {
-			const response = await fetch(BACKEND_CHAT_ENDPOINT, {
-				method: 'POST',
-				headers: {
-					authorization: `Bearer ${trimmedApiKey}`,
-					'content-type': 'application/json'
+			await streamChatCompletion(
+				{
+					model: selectedModel,
+					thread_id: requestThreadId,
+					prompt
 				},
-				body: JSON.stringify({ prompt, model: selectedModel, thread_id: requestThreadId })
-			});
-
-			const payload = (await response.json()) as {
-				content?: string;
-				error?: string;
-				model?: string;
-			};
-			rawResponse = JSON.stringify(payload, null, 2);
-
-			if (!response.ok || !payload.content) {
-				throw new Error(payload.error ?? 'The model returned an empty response.');
-			}
-
-			if (payload.model && !activeThread?.model) {
-				queryClient.setQueryData<Thread[]>(threadKeys.all, (currentThreads) =>
-					(currentThreads ?? []).map((t) =>
-						t.id === requestThreadId ? { ...t, model: payload.model } : t
-					)
-				);
-			}
-
-			updateThreadMessages(requestThreadId, [
-				...nextMessages,
-				createMessage('assistant', payload.content)
-			]);
+				trimmedApiKey,
+				(event) => {
+					switch (event.type) {
+						case 'message_started': {
+							const message = normalizeMessage(event.payload.message);
+							upsertAssistantMessage(requestThreadId, {
+								...message,
+								status: 'streaming'
+							});
+							pushStreamEvent(event.type, `assistant ${message.id} started`);
+							break;
+						}
+						case 'text_delta': {
+							queueStreamDelta(
+								requestThreadId,
+								event.payload.message_id,
+								'text',
+								event.payload.delta
+							);
+							pushStreamEvent(
+								event.type,
+								`${event.payload.message_id} +${event.payload.delta.length} text`
+							);
+							break;
+						}
+						case 'reasoning_delta': {
+							queueStreamDelta(
+								requestThreadId,
+								event.payload.message_id,
+								'reasoning',
+								event.payload.delta
+							);
+							pushStreamEvent(
+								event.type,
+								`${event.payload.message_id} +${event.payload.delta.length} reasoning`
+							);
+							break;
+						}
+						case 'message_completed': {
+							flushPendingStreamUpdates();
+							const completed = normalizeMessage(event.payload.message);
+							upsertAssistantMessage(requestThreadId, {
+								...completed,
+								status: 'completed'
+							});
+							pushStreamEvent(event.type, `assistant ${completed.id} completed`);
+							const completedModel = completed.provider?.model;
+							if (completedModel && !activeThread?.model) {
+								queryClient.setQueryData<Thread[]>(threadKeys.all, (currentThreads) =>
+									(currentThreads ?? []).map((t) =>
+										t.id === requestThreadId ? { ...t, model: completedModel } : t
+									)
+								);
+							}
+							break;
+						}
+						case 'message_failed': {
+							flushPendingStreamUpdates();
+							patchAssistantMessage(requestThreadId, event.payload.message_id, (message) => {
+								const errorText = `Error: ${event.payload.error.message}`;
+								const nextParts = [...(message.parts ?? [])];
+								if (!nextParts.some((part) => part.kind === 'text')) {
+									nextParts.push({ kind: 'text', text: errorText });
+								}
+								return {
+									...message,
+									status: 'failed',
+									parts: nextParts,
+									content: getMessageText({ ...message, parts: nextParts })
+								};
+							});
+							pushStreamEvent(
+								event.type,
+								`${event.payload.message_id} failed: ${event.payload.error.message}`
+							);
+							break;
+						}
+					}
+				}
+			);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to send prompt.';
-			updateThreadMessages(requestThreadId, [
-				...nextMessages,
-				createMessage('assistant', `Error: ${message}`)
-			]);
+			pushStreamEvent('message_failed', `request failed: ${message}`);
+			updateThreadMessages(requestThreadId, [...nextMessages, createMessage('assistant', `Error: ${message}`)]);
 		} finally {
+			flushPendingStreamUpdates();
 			isSending = false;
 			void queryClient.invalidateQueries({ queryKey: threadKeys.all });
 		}
@@ -307,15 +543,25 @@
 
 	$effect(() => {
 		const currentThreadId = threadId;
-		const currentMessageCount = messageCount;
+		const currentSignature = messageFlowSignature;
+		const shouldAutoFollow = isNearBottom();
 
 		void tick().then(() => {
-			if (!currentThreadId || currentMessageCount < 0) {
+			if (!currentThreadId || !currentSignature || !shouldAutoFollow) {
 				return;
 			}
 
 			scrollToLatest();
 		});
+	});
+
+	$effect(() => {
+		return () => {
+			if (flushTimer) {
+				clearTimeout(flushTimer);
+				flushTimer = null;
+			}
+		};
 	});
 </script>
 
@@ -372,31 +618,11 @@
 				</div>
 				<h1 class="text-sm font-bold tracking-tight">{threadTitle}</h1>
 			</div>
-			<div class="ml-auto flex items-center gap-2">
-				{#if rawResponse}
-					<Button
-						variant="ghost"
-						size="xs"
-						class="h-7 px-2 text-[10px] font-bold tracking-widest uppercase"
-						onclick={() => (showRaw = !showRaw)}
-					>
-						{showRaw ? 'Hide Raw' : 'Show Raw'}
-					</Button>
-				{/if}
-			</div>
+			<div class="ml-auto flex items-center gap-2"></div>
 		</header>
 
 		<ScrollArea.Root class="min-h-0 flex-1" bind:viewportRef>
 			<div class="flex min-h-full flex-col justify-end">
-				{#if showRaw && rawResponse}
-					<div class="mx-auto w-full max-w-3xl px-6 py-4">
-						<pre
-							class="overflow-auto rounded-xl border bg-muted/50 p-4 font-mono text-[10px] text-muted-foreground"
-						>
-							{rawResponse}
-						</pre>
-					</div>
-				{/if}
 				{#if loadError}
 					<div class="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 py-10">
 						<p
@@ -466,10 +692,20 @@
 											<div
 												class="prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-li:text-foreground"
 											>
-												<SvelteMarkdown source={message.content} />
+												<SvelteMarkdown source={getMessageText(message)} />
 											</div>
+											{#if getMessageReasoning(message)}
+												<details class="mt-3 rounded-md border border-border/70 bg-muted/30 px-3 py-2">
+													<summary class="cursor-pointer text-[10px] font-bold tracking-wide uppercase">
+														Reasoning
+													</summary>
+													<p class="mt-2 whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">
+														{getMessageReasoning(message)}
+													</p>
+												</details>
+											{/if}
 										{:else}
-											{message.content}
+											{getMessageText(message)}
 										{/if}
 									</div>
 									<span
@@ -590,38 +826,40 @@
 	<aside class="hidden min-h-0 w-60 flex-col border-l bg-muted/20 backdrop-blur-md lg:flex">
 		<div class="p-4">
 			<h2 class="text-[10px] font-black tracking-widest text-foreground/40 uppercase">
-				Message Log
+				Stream Log
 			</h2>
 		</div>
 		<ScrollArea.Root class="flex-1">
 			<div class="space-y-4 p-4">
-				{#if messages.length === 0}
-					<p class="text-[11px] text-muted-foreground/60">No messages yet.</p>
+				{#if streamEvents.length === 0}
+					<p class="text-[11px] text-muted-foreground/60">No stream events yet.</p>
 				{:else}
-					{#each messages as message (`toc-${message.id}`)}
-						<button
-							onclick={() => scrollToMessage(message.id)}
-							class="group flex w-full items-start gap-2.5 text-left transition-all"
-						>
+					{#each streamEvents as event (`stream-${event.id}`)}
+						<div class="group flex w-full items-start gap-2.5 text-left transition-all">
 							<div
 								class={cn(
 									'mt-1.5 flex h-1.5 w-1.5 shrink-0 rounded-full transition-all group-hover:scale-125',
-									message.role === 'assistant' ? 'bg-primary' : 'bg-muted-foreground/30'
+									event.type === 'message_failed' ? 'bg-destructive' : 'bg-primary'
 								)}
 							></div>
 							<div class="flex flex-col gap-1">
 								<span
 									class="text-[10px] font-black tracking-tighter text-muted-foreground/50 uppercase transition-colors group-hover:text-primary/60"
 								>
-									{message.role}
+									{event.type}
 								</span>
 								<p
 									class="line-clamp-2 text-[11px] leading-snug text-foreground/60 transition-colors group-hover:text-foreground"
 								>
-									{message.content}
+									{event.detail}
 								</p>
+								<span
+									class="text-[9px] font-bold tracking-[0.12em] text-muted-foreground/40 uppercase"
+								>
+									{formatMessageTimestamp(event.timestamp)}
+								</span>
 							</div>
-						</button>
+						</div>
 					{/each}
 				{/if}
 			</div>

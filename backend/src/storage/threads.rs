@@ -72,6 +72,10 @@ pub async fn update_thread_model(
 pub struct MessageRecord {
     pub id: Uuid,
     pub role: String,
+    pub status: String,
+    pub parts: serde_json::Value,
+    pub provider: serde_json::Value,
+    pub metadata: serde_json::Value,
     pub content: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
@@ -89,9 +93,9 @@ pub async fn create_message(
 
     let record = sqlx::query_as::<_, MessageRecord>(
         r#"
-        INSERT INTO messages (id, thread_id, role, status, content, provider)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, role, content, created_at
+        INSERT INTO messages (id, thread_id, role, status, content, parts, provider, metadata)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, role, status, parts, provider, metadata, content, created_at
         "#,
     )
     .bind(Uuid::new_v4())
@@ -99,7 +103,9 @@ pub async fn create_message(
     .bind(role)
     .bind("completed")
     .bind(content)
+    .bind(serde_json::json!([{ "kind": "text", "text": content }]))
     .bind(serde_json::json!({"name": "openrouter"}))
+    .bind(serde_json::json!({}))
     .fetch_one(pool)
     .await?;
 
@@ -118,6 +124,73 @@ pub async fn create_message(
     Ok(record)
 }
 
+pub async fn create_assistant_message_shell(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+    provider: serde_json::Value,
+) -> Result<MessageRecord, sqlx::Error> {
+    if !thread_exists_for_user(pool, user_id, thread_id).await? {
+        return Err(sqlx::Error::RowNotFound);
+    }
+
+    let record = sqlx::query_as::<_, MessageRecord>(
+        r#"
+        INSERT INTO messages (id, thread_id, role, status, content, parts, provider, metadata)
+        VALUES ($1, $2, 'assistant', 'streaming', '', '[]'::jsonb, $3, '{}'::jsonb)
+        RETURNING id, role, status, parts, provider, metadata, content, created_at
+        "#,
+    )
+    .bind(Uuid::new_v4())
+    .bind(thread_id)
+    .bind(provider)
+    .fetch_one(pool)
+    .await?;
+
+    touch_thread(pool, user_id, thread_id).await?;
+
+    Ok(record)
+}
+
+pub async fn update_message_snapshot(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+    message_id: Uuid,
+    status: &str,
+    content: &str,
+    parts: serde_json::Value,
+    metadata: serde_json::Value,
+) -> Result<(), sqlx::Error> {
+    let result = sqlx::query(
+        r#"
+        UPDATE messages
+        SET status = $1, content = $2, parts = $3, metadata = $4
+        FROM threads
+        WHERE messages.id = $5
+          AND messages.thread_id = $6
+          AND threads.id = messages.thread_id
+          AND threads.user_id = $7
+        "#,
+    )
+    .bind(status)
+    .bind(content)
+    .bind(parts)
+    .bind(metadata)
+    .bind(message_id)
+    .bind(thread_id)
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(sqlx::Error::RowNotFound);
+    }
+
+    touch_thread(pool, user_id, thread_id).await?;
+    Ok(())
+}
+
 pub async fn list_messages(
     pool: &PgPool,
     user_id: Uuid,
@@ -129,7 +202,15 @@ pub async fn list_messages(
 
     sqlx::query_as::<_, MessageRecord>(
         r#"
-        SELECT messages.id, messages.role, messages.content, messages.created_at
+        SELECT
+            messages.id,
+            messages.role,
+            messages.status,
+            messages.parts,
+            messages.provider,
+            messages.metadata,
+            messages.content,
+            messages.created_at
         FROM messages
         INNER JOIN threads ON threads.id = messages.thread_id
         WHERE messages.thread_id = $1 AND threads.user_id = $2
@@ -140,6 +221,22 @@ pub async fn list_messages(
     .bind(user_id)
     .fetch_all(pool)
     .await
+}
+
+async fn touch_thread(pool: &PgPool, user_id: Uuid, thread_id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE threads
+        SET updated_at = NOW()
+        WHERE id = $1 AND user_id = $2
+        "#,
+    )
+    .bind(thread_id)
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+
+    Ok(())
 }
 
 async fn thread_exists_for_user(

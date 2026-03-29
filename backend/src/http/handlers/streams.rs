@@ -26,7 +26,8 @@ pub async fn hello_stream() -> Sse<impl Stream<Item = Result<Event, Infallible>>
 fn build_sse_event(payload: ClientChatEvent) -> Event {
     let event_name = match &payload {
         ClientChatEvent::MessageStarted { .. } => "message_started",
-        ClientChatEvent::MessageDelta { .. } => "message_delta",
+        ClientChatEvent::TextDelta { .. } => "text_delta",
+        ClientChatEvent::ReasoningDelta { .. } => "reasoning_delta",
         ClientChatEvent::MessageCompleted { .. } => "message_completed",
         ClientChatEvent::MessageFailed { .. } => "message_failed",
     };

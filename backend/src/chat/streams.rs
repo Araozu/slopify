@@ -31,13 +31,13 @@ fn build_event(index: usize) -> ClientChatEvent {
                 ..message.clone()
             },
         },
-        1 => ClientChatEvent::MessageDelta {
+        1 => ClientChatEvent::TextDelta {
             message_id: message.id.clone(),
             delta: "Hello".to_string(),
         },
-        2 => ClientChatEvent::MessageDelta {
+        2 => ClientChatEvent::ReasoningDelta {
             message_id: message.id.clone(),
-            delta: " world from SSE".to_string(),
+            delta: " thinking about hello world...".to_string(),
         },
         _ => ClientChatEvent::MessageCompleted { message },
     }

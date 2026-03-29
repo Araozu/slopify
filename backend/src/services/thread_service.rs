@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::{
     storage::threads as thread_storage,
-    threads::contracts::Thread,
+    threads::contracts::{Message, MessagePart, Thread},
 };
 
 const DEFAULT_THREAD_TITLE: &str = "New thread";
@@ -71,16 +71,51 @@ pub async fn save_message(
     thread_id: Uuid,
     role: &str,
     content: &str,
-) -> Result<crate::threads::contracts::Message, ThreadServiceError> {
+) -> Result<Message, ThreadServiceError> {
     let record = thread_storage::create_message(pool, user_id, thread_id, role, content).await?;
     Ok(map_message(record))
+}
+
+pub async fn create_assistant_message_shell(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+    provider: serde_json::Value,
+) -> Result<Message, ThreadServiceError> {
+    let record = thread_storage::create_assistant_message_shell(pool, user_id, thread_id, provider).await?;
+    Ok(map_message(record))
+}
+
+pub async fn update_streaming_assistant_message(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+    message_id: Uuid,
+    status: &str,
+    content: &str,
+    parts: Vec<MessagePart>,
+    metadata: serde_json::Value,
+) -> Result<(), ThreadServiceError> {
+    thread_storage::update_message_snapshot(
+        pool,
+        user_id,
+        thread_id,
+        message_id,
+        status,
+        content,
+        serde_json::to_value(parts).unwrap_or_else(|_| serde_json::json!([])),
+        metadata,
+    )
+    .await?;
+
+    Ok(())
 }
 
 pub async fn list_messages(
     pool: &PgPool,
     user_id: Uuid,
     thread_id: Uuid,
-) -> Result<Vec<crate::threads::contracts::Message>, ThreadServiceError> {
+) -> Result<Vec<Message>, ThreadServiceError> {
     let records = thread_storage::list_messages(pool, user_id, thread_id).await?;
     Ok(records.into_iter().map(map_message).collect())
 }
@@ -93,10 +128,21 @@ fn map_thread(record: thread_storage::ThreadRecord) -> Thread {
     }
 }
 
-fn map_message(record: thread_storage::MessageRecord) -> crate::threads::contracts::Message {
-    crate::threads::contracts::Message {
+fn map_message(record: thread_storage::MessageRecord) -> Message {
+    let mut parts = serde_json::from_value::<Vec<MessagePart>>(record.parts.clone()).unwrap_or_default();
+    if parts.is_empty() && !record.content.trim().is_empty() {
+        parts.push(MessagePart::Text {
+            text: record.content.clone(),
+        });
+    }
+
+    Message {
         id: record.id.to_string(),
         role: record.role,
+        status: record.status,
+        parts,
+        provider: record.provider,
+        metadata: record.metadata,
         content: record.content,
         timestamp: record.created_at.to_rfc3339(),
     }
