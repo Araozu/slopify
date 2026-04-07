@@ -54,13 +54,13 @@
 			</a>
 			<a
 				href={resolve('/(main)/profile')}
-				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
+				class="hidden rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10 sm:block"
 			>
 				Profile
 			</a>
 			<a
 				href={resolve('/(main)/settings/keys')}
-				class="rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10"
+				class="hidden rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10 sm:block"
 			>
 				Keys
 			</a>

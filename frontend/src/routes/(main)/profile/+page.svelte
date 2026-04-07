@@ -32,7 +32,7 @@
 </script>
 
 <div class="flex h-[calc(100vh-2rem)] min-h-0 w-full flex-col bg-background">
-	<header class="flex items-center border-b bg-background/20 px-6 py-1 backdrop-blur-xl">
+	<header class="flex items-center border-b bg-background/20 px-4 py-1 backdrop-blur-xl md:px-6">
 		<div class="flex items-center gap-2">
 			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
 				<UserCircleIcon size={14} weight="fill" />
@@ -42,7 +42,7 @@
 	</header>
 
 	<div class="flex-1 overflow-y-auto">
-		<div class="mx-auto w-full max-w-3xl space-y-12 px-6 py-10">
+		<div class="mx-auto w-full max-w-3xl space-y-12 px-4 py-6 md:px-6 md:py-10">
 			<section class="space-y-6">
 				<div class="flex items-center gap-6">
 					<div
