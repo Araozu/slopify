@@ -36,7 +36,7 @@
 <aside
 	id="thread-sidebar"
 	class={cn(
-		'flex min-h-0 w-64 flex-col border-r bg-muted/30 backdrop-blur-md',
+		'absolute inset-y-0 left-0 z-40 flex min-h-0 w-64 flex-col border-r bg-muted/30 backdrop-blur-md md:static md:z-auto',
 		collapsed && 'hidden'
 	)}
 	aria-hidden={collapsed}

@@ -34,7 +34,7 @@
 	}: Props = $props();
 </script>
 
-<footer class="p-6">
+<footer class="p-4 md:p-6">
 	<div class="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-2 px-2">
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger

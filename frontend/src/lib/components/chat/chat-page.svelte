@@ -16,7 +16,7 @@
 		type StreamChatEvent
 	} from '$lib/thread-client';
 	import type { Message, OpenRouterApiKey, Thread } from '$lib/types';
-	import { tick, untrack } from 'svelte';
+	import { tick, untrack, onMount } from 'svelte';
 	import ChatComposer from './chat-composer.svelte';
 	import ChatHeader from './chat-header.svelte';
 	import ChatMessagesViewport from './chat-messages-viewport.svelte';
@@ -50,10 +50,18 @@
 		Record<string, { threadId: string; messageId: string; text: string; reasoning: string }>
 	>({});
 
+	const MOBILE_BREAKPOINT_PX = 768;
+
 	let viewportRef: HTMLElement | null = $state(null);
 	let flushTimer: ReturnType<typeof setTimeout> | null = null;
 	let sidebarCollapsed = $state(false);
 	let initialScrollDoneForThreadId = $state<string | null>(null);
+
+	onMount(() => {
+		if (window.innerWidth < MOBILE_BREAKPOINT_PX) {
+			sidebarCollapsed = true;
+		}
+	});
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
@@ -655,7 +663,17 @@
 	});
 </script>
 
-<div class="flex h-[calc(100vh-2rem)] min-h-0 w-full overflow-hidden bg-background">
+<div class="relative flex h-[calc(100vh-2rem)] min-h-0 w-full overflow-hidden bg-background">
+	{#if !sidebarCollapsed}
+		<div
+			class="absolute inset-0 z-30 bg-background/60 backdrop-blur-sm md:hidden"
+			onclick={() => (sidebarCollapsed = true)}
+			onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (sidebarCollapsed = true)}
+			role="button"
+			tabindex="0"
+			aria-label="Close sidebar"
+		></div>
+	{/if}
 	<ThreadSidebar
 		collapsed={sidebarCollapsed}
 		{chatThreads}
