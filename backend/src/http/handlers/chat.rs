@@ -20,6 +20,7 @@ use crate::{
     http::auth::AuthSession,
     services::{
         chat_service::{self, ChatServiceError, ChatServiceStreamEvent},
+        system_prompt_service,
         thread_service::{self, ThreadServiceError},
     },
     state::AppState,
@@ -31,6 +32,7 @@ pub struct PromptRequest {
     pub prompt: String,
     pub model: String,
     pub thread_id: Option<Uuid>,
+    pub system_prompt_id: Option<Uuid>,
 }
 
 #[derive(Serialize)]
@@ -49,7 +51,8 @@ pub async fn complete_prompt(
         .and_then(|value| value.to_str().ok());
 
     let thread_id = payload.thread_id;
-    let prompt_messages = if let Some(thread_id) = thread_id {
+    let system_prompt_id = payload.system_prompt_id;
+    let mut prompt_messages = if let Some(thread_id) = thread_id {
         if let Err(error) = thread_service::save_message(
             &state.db_pool,
             session.user_id,
@@ -82,6 +85,29 @@ pub async fn complete_prompt(
             content: payload.prompt.clone(),
         }]
     };
+
+    if let Some(system_prompt_id) = system_prompt_id {
+        match system_prompt_service::get_system_prompt_content(
+            &state.db_pool,
+            session.user_id,
+            system_prompt_id,
+        )
+        .await
+        {
+            Ok(content) => {
+                prompt_messages.insert(
+                    0,
+                    PromptMessage {
+                        role: ChatRole::System,
+                        content,
+                    },
+                );
+            }
+            Err(error) => {
+                eprintln!("failed to load system prompt {system_prompt_id}: {error}");
+            }
+        }
+    }
 
     let stream = match chat_service::stream_prompt(
         &state.http_client,

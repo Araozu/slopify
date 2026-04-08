@@ -8,6 +8,7 @@
 		threadsQueryOptions
 	} from '$lib/queries/thread-query';
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
+	import { systemPromptsQueryOptions } from '$lib/queries/system-prompt-query';
 	import {
 		createThread,
 		deleteThread,
@@ -15,7 +16,7 @@
 		updateThreadTitle,
 		type StreamChatEvent
 	} from '$lib/thread-client';
-	import type { Message, OpenRouterApiKey, Thread } from '$lib/types';
+	import type { Message, OpenRouterApiKey, SystemPrompt, Thread } from '$lib/types';
 	import { tick, untrack, onMount } from 'svelte';
 	import ChatComposer from './chat-composer.svelte';
 	import ChatHeader from './chat-header.svelte';
@@ -65,10 +66,14 @@
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
+	const systemPromptsQuery = createQuery(() => systemPromptsQueryOptions());
 
 	const keys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
 	let selectedKeyId = $state<string | null>(null);
 	const selectedKey = $derived(keys.find((k) => k.id === selectedKeyId) ?? keys[0] ?? null);
+
+	const systemPrompts = $derived((systemPromptsQuery.data ?? []) as SystemPrompt[]);
+	let selectedSystemPromptId = $state<string | null>(null);
 
 	const createThreadMutation = createMutation(() => ({
 		mutationFn: ({ title }: { title?: string; replaceState?: boolean }) => createThread(title),
@@ -532,7 +537,8 @@
 				{
 					model: selectedModel,
 					thread_id: requestThreadId,
-					prompt
+					prompt,
+					system_prompt_id: selectedSystemPromptId ?? undefined
 				},
 				trimmedApiKey,
 				(event) => {
@@ -712,10 +718,13 @@
 			bind:model
 			{keys}
 			{selectedKey}
+			{systemPrompts}
+			{selectedSystemPromptId}
 			{isSending}
 			{isBootstrapping}
 			{activeThread}
 			onSelectKey={(id) => (selectedKeyId = id)}
+			onSelectSystemPrompt={(id) => (selectedSystemPromptId = id)}
 			onSend={sendMessage}
 			onComposerKeydown={handleComposerKeydown}
 		/>

@@ -9,6 +9,7 @@ mod providers;
 mod services;
 mod state;
 mod storage;
+mod system_prompts;
 mod threads;
 
 use config::AppConfig;
