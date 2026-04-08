@@ -41,6 +41,41 @@ pub async fn create_thread(
     }
 }
 
+#[derive(Deserialize)]
+pub struct ForkThreadRequest {
+    pub message_id: Uuid,
+}
+
+pub async fn fork_thread(
+    State(state): State<AppState>,
+    session: AuthSession,
+    Path(thread_id): Path<String>,
+    Json(payload): Json<ForkThreadRequest>,
+) -> Response {
+    let thread_id = match parse_thread_id(thread_id) {
+        Ok(id) => id,
+        Err(error) => return error.into_response(),
+    };
+
+    let source_thread = match thread_service::get_thread(&state.db_pool, session.user_id, thread_id).await {
+        Ok(t) => t,
+        Err(error) => return ApiError::from(error).into_response(),
+    };
+
+    match thread_service::fork_thread(
+        &state.db_pool,
+        session.user_id,
+        thread_id,
+        payload.message_id,
+        &source_thread.title,
+    )
+    .await
+    {
+        Ok(new_thread) => (StatusCode::CREATED, Json(new_thread)).into_response(),
+        Err(error) => ApiError::from(error).into_response(),
+    }
+}
+
 pub async fn thread_options() -> StatusCode {
     StatusCode::NO_CONTENT
 }

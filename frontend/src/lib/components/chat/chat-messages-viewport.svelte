@@ -9,6 +9,8 @@
 		isBootstrapping: boolean;
 		isLoadingMessages: boolean;
 		messages: Message[];
+		onDeletePair?: (messageId: string) => void;
+		onFork?: (messageId: string) => void;
 	}
 
 	let {
@@ -16,7 +18,9 @@
 		loadError,
 		isBootstrapping,
 		isLoadingMessages,
-		messages
+		messages,
+		onDeletePair,
+		onFork
 	}: Props = $props();
 </script>
 
@@ -54,7 +58,7 @@
 		{:else}
 			<div class="mx-auto w-full max-w-3xl space-y-10 px-4 py-6 md:px-6 md:py-10">
 				{#each messages as message (message.id)}
-					<ChatMessageBubble {message} />
+					<ChatMessageBubble {message} {onDeletePair} {onFork} />
 				{/each}
 			</div>
 		{/if}

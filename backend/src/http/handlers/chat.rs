@@ -283,6 +283,24 @@ pub async fn complete_prompt(
         .into_response()
 }
 
+pub async fn delete_message_pair(
+    State(state): State<AppState>,
+    session: AuthSession,
+    Path((thread_id, message_id)): Path<(Uuid, Uuid)>,
+) -> Response {
+    match thread_service::delete_message_pair(
+        &state.db_pool,
+        session.user_id,
+        thread_id,
+        message_id,
+    )
+    .await
+    {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => ApiError::from(error).into_response(),
+    }
+}
+
 pub async fn list_thread_messages(
     State(state): State<AppState>,
     session: AuthSession,

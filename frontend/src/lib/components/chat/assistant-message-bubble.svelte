@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { RobotIcon } from 'phosphor-svelte';
+	import { RobotIcon, GitForkIcon } from 'phosphor-svelte';
 	import SvelteMarkdown from 'svelte-markdown';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import type { Message } from '$lib/types';
@@ -12,9 +12,10 @@
 
 	interface Props {
 		message: Message;
+		onFork?: () => void;
 	}
 
-	let { message }: Props = $props();
+	let { message, onFork }: Props = $props();
 
 	let hideStreamingContent = $derived(
 		message.status === 'streaming' && !$showAssistantStreamingText
@@ -23,7 +24,7 @@
 
 <div
 	id={message.id}
-	class="flex w-full animate-in flex-row gap-5 transition-all duration-500 fade-in slide-in-from-bottom-2"
+	class="group flex w-full animate-in flex-row gap-5 transition-all duration-500 fade-in slide-in-from-bottom-2"
 >
 	<Avatar.Root title="Clanker" class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background">
 		<Avatar.Fallback class="border border-primary/20 bg-primary/10 text-primary">
@@ -63,9 +64,21 @@
 				</div>
 			{/if}
 		</div>
-		<span class="px-1 text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase">
-			{formatMessageTimestamp(message.timestamp)}
-		</span>
+		<div class="flex items-center gap-2 px-1">
+			<span class="text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase">
+				{formatMessageTimestamp(message.timestamp)}
+			</span>
+			{#if onFork && message.status !== 'streaming'}
+				<button
+					onclick={onFork}
+					class="invisible flex h-5 w-5 items-center justify-center rounded text-muted-foreground/40 transition-colors group-hover:visible hover:text-primary"
+					title="Fork thread from this response"
+					aria-label="Fork thread from this response"
+				>
+					<GitForkIcon size={13} weight="bold" />
+				</button>
+			{/if}
+		</div>
 	</div>
 </div>
 
