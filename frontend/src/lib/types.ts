@@ -45,3 +45,9 @@ export interface OpenRouterApiKey {
 	name: string;
 	apiKey: string;
 }
+
+export interface SystemPrompt {
+	id: string;
+	name: string;
+	content: string;
+}

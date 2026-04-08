@@ -8,7 +8,8 @@
 		SignOutIcon,
 		GearIcon,
 		ClockCounterClockwiseIcon,
-		KeyIcon
+		KeyIcon,
+		ChatCircleTextIcon
 	} from 'phosphor-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -64,6 +65,12 @@
 			>
 				Keys
 			</a>
+			<a
+				href={resolve('/(main)/settings/system-prompts')}
+				class="hidden rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10 sm:block"
+			>
+				Prompts
+			</a>
 		</nav>
 
 		<div class="flex items-center gap-3">
@@ -98,6 +105,10 @@
 						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/settings/keys'))}>
 							<KeyIcon class="mr-2 h-4 w-4" />
 							<span>API Keys</span>
+						</DropdownMenu.Item>
+						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/settings/system-prompts'))}>
+							<ChatCircleTextIcon class="mr-2 h-4 w-4" />
+							<span>System Prompts</span>
 						</DropdownMenu.Item>
 						<DropdownMenu.Item>
 							<GearIcon class="mr-2 h-4 w-4" />

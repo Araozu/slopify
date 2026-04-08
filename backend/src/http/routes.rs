@@ -6,7 +6,7 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
-    http::handlers::{auth, chat, health, openrouter_keys, streams, threads},
+    http::handlers::{auth, chat, health, openrouter_keys, streams, system_prompts, threads},
     state::AppState,
 };
 
@@ -31,6 +31,16 @@ fn api_router() -> Router<AppState> {
             "/v1/openrouter-keys/{key_id}",
             axum::routing::patch(openrouter_keys::update_openrouter_key)
                 .delete(openrouter_keys::delete_openrouter_key),
+        )
+        .route(
+            "/v1/system-prompts",
+            get(system_prompts::list_system_prompts)
+                .post(system_prompts::create_system_prompt),
+        )
+        .route(
+            "/v1/system-prompts/{prompt_id}",
+            axum::routing::patch(system_prompts::update_system_prompt)
+                .delete(system_prompts::delete_system_prompt),
         )
         .route(
             "/v1/chat/completions",

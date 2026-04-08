@@ -7,6 +7,7 @@ export type StreamChatPayload = {
 	model: string;
 	thread_id: string;
 	prompt: string;
+	system_prompt_id?: string;
 };
 
 export type StreamChatEvent =
