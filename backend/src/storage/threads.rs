@@ -8,6 +8,26 @@ pub struct ThreadRecord {
     pub model: Option<String>,
 }
 
+pub async fn get_thread(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+) -> Result<ThreadRecord, sqlx::Error> {
+    let row = sqlx::query_as::<_, ThreadRecord>(
+        r#"
+        SELECT id, title, model
+        FROM threads
+        WHERE id = $1 AND user_id = $2
+        "#,
+    )
+    .bind(thread_id)
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
+
+    row.ok_or(sqlx::Error::RowNotFound)
+}
+
 pub async fn list_threads(pool: &PgPool, user_id: Uuid) -> Result<Vec<ThreadRecord>, sqlx::Error> {
     sqlx::query_as::<_, ThreadRecord>(
         r#"
@@ -283,6 +303,100 @@ async fn touch_thread(pool: &PgPool, user_id: Uuid, thread_id: Uuid) -> Result<(
     .await?;
 
     Ok(())
+}
+
+pub async fn delete_message_pair(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+    message_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    if !thread_exists_for_user(pool, user_id, thread_id).await? {
+        return Err(sqlx::Error::RowNotFound);
+    }
+
+    let created_at: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar(
+        r#"SELECT created_at FROM messages WHERE id = $1 AND thread_id = $2"#,
+    )
+    .bind(message_id)
+    .bind(thread_id)
+    .fetch_optional(pool)
+    .await?;
+
+    let Some(created_at) = created_at else {
+        return Err(sqlx::Error::RowNotFound);
+    };
+
+    let next_id: Option<Uuid> = sqlx::query_scalar(
+        r#"
+        SELECT id FROM messages
+        WHERE thread_id = $1 AND created_at > $2
+        ORDER BY created_at ASC
+        LIMIT 1
+        "#,
+    )
+    .bind(thread_id)
+    .bind(created_at)
+    .fetch_optional(pool)
+    .await?;
+
+    let ids_to_delete: Vec<Uuid> = if let Some(next) = next_id {
+        vec![message_id, next]
+    } else {
+        vec![message_id]
+    };
+
+    sqlx::query(r#"DELETE FROM messages WHERE id = ANY($1) AND thread_id = $2"#)
+        .bind(&ids_to_delete)
+        .bind(thread_id)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+pub async fn fork_thread_at_message(
+    pool: &PgPool,
+    user_id: Uuid,
+    source_thread_id: Uuid,
+    message_id: Uuid,
+    new_thread_id: Uuid,
+    new_title: &str,
+) -> Result<ThreadRecord, sqlx::Error> {
+    if !thread_exists_for_user(pool, user_id, source_thread_id).await? {
+        return Err(sqlx::Error::RowNotFound);
+    }
+
+    let message_created_at: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar(
+        r#"SELECT created_at FROM messages WHERE id = $1 AND thread_id = $2"#,
+    )
+    .bind(message_id)
+    .bind(source_thread_id)
+    .fetch_optional(pool)
+    .await?;
+
+    let Some(message_created_at) = message_created_at else {
+        return Err(sqlx::Error::RowNotFound);
+    };
+
+    let new_thread = create_thread(pool, new_thread_id, user_id, new_title).await?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO messages (id, thread_id, role, status, content, parts, provider, metadata, created_at)
+        SELECT gen_random_uuid(), $1, role, status, content, parts, provider, metadata, created_at
+        FROM messages
+        WHERE thread_id = $2 AND created_at <= $3
+        ORDER BY created_at ASC
+        "#,
+    )
+    .bind(new_thread_id)
+    .bind(source_thread_id)
+    .bind(message_created_at)
+    .execute(pool)
+    .await?;
+
+    Ok(new_thread)
 }
 
 async fn thread_exists_for_user(

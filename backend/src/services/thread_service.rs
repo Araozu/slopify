@@ -35,6 +35,15 @@ impl From<sqlx::Error> for ThreadServiceError {
     }
 }
 
+pub async fn get_thread(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+) -> Result<Thread, ThreadServiceError> {
+    let record = thread_storage::get_thread(pool, user_id, thread_id).await?;
+    Ok(map_thread(record))
+}
+
 pub async fn list_threads(pool: &PgPool, user_id: Uuid) -> Result<Vec<Thread>, ThreadServiceError> {
     let threads = thread_storage::list_threads(pool, user_id).await?;
     Ok(threads.into_iter().map(map_thread).collect())
@@ -136,6 +145,38 @@ pub async fn update_streaming_assistant_message(
     .await?;
 
     Ok(())
+}
+
+pub async fn delete_message_pair(
+    pool: &PgPool,
+    user_id: Uuid,
+    thread_id: Uuid,
+    message_id: Uuid,
+) -> Result<(), ThreadServiceError> {
+    thread_storage::delete_message_pair(pool, user_id, thread_id, message_id).await?;
+    Ok(())
+}
+
+pub async fn fork_thread(
+    pool: &PgPool,
+    user_id: Uuid,
+    source_thread_id: Uuid,
+    message_id: Uuid,
+    source_title: &str,
+) -> Result<Thread, ThreadServiceError> {
+    let new_thread_id = Uuid::new_v4();
+    let new_title = format!("Fork of {source_title}");
+    let final_title = new_title.chars().take(MAX_THREAD_TITLE_CHARS).collect::<String>();
+    let record = thread_storage::fork_thread_at_message(
+        pool,
+        user_id,
+        source_thread_id,
+        message_id,
+        new_thread_id,
+        &final_title,
+    )
+    .await?;
+    Ok(map_thread(record))
 }
 
 pub async fn list_messages(

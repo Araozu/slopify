@@ -20,6 +20,36 @@ export type StreamChatEvent =
 			payload: { message_id: string; error: { code: string; message: string; retryable: boolean } };
 	  };
 
+export async function deleteMessagePair(threadId: string, messageId: string): Promise<void> {
+	const response = await fetch(`${THREADS_API_ENDPOINT}/${threadId}/messages/${messageId}`, {
+		method: 'DELETE',
+		credentials: 'include'
+	});
+
+	if (response.status === 204) {
+		return;
+	}
+
+	const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+	throw new Error(payload?.error ?? 'Failed to delete message pair.');
+}
+
+export async function forkThread(threadId: string, messageId: string): Promise<Thread> {
+	const response = await fetch(`${THREADS_API_ENDPOINT}/${threadId}/fork`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		credentials: 'include',
+		body: JSON.stringify({ message_id: messageId })
+	});
+	const payload = (await response.json()) as Thread | { error?: string };
+
+	if (!response.ok || !('id' in payload) || !('title' in payload)) {
+		throw new Error(('error' in payload && payload.error) || 'Failed to fork thread.');
+	}
+
+	return payload;
+}
+
 export async function listThreads(signal?: AbortSignal): Promise<Thread[]> {
 	const response = await fetch(THREADS_API_ENDPOINT, {
 		signal,

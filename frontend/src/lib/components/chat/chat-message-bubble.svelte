@@ -5,13 +5,15 @@
 
 	interface Props {
 		message: Message;
+		onDeletePair?: (messageId: string) => void;
+		onFork?: (messageId: string) => void;
 	}
 
-	let { message }: Props = $props();
+	let { message, onDeletePair, onFork }: Props = $props();
 </script>
 
 {#if message.role === 'user'}
-	<UserMessageBubble {message} />
+	<UserMessageBubble {message} onDelete={() => onDeletePair?.(message.id)} />
 {:else}
-	<AssistantMessageBubble {message} />
+	<AssistantMessageBubble {message} onFork={() => onFork?.(message.id)} />
 {/if}

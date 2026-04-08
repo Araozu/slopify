@@ -63,6 +63,18 @@ fn api_router() -> Router<AppState> {
                 .layer(chat_cors_layer()),
         )
         .route(
+            "/v1/threads/{thread_id}/messages/{message_id}",
+            axum::routing::delete(chat::delete_message_pair)
+                .options(chat::chat_options)
+                .layer(chat_cors_layer()),
+        )
+        .route(
+            "/v1/threads/{thread_id}/fork",
+            post(threads::fork_thread)
+                .options(threads::thread_options)
+                .layer(chat_cors_layer()),
+        )
+        .route(
             "/v1/threads/{thread_id}/messages",
             get(chat::list_thread_messages)
                 .options(chat::chat_options)

@@ -12,6 +12,8 @@
 	import {
 		createThread,
 		deleteThread,
+		deleteMessagePair,
+		forkThread,
 		streamChatCompletion,
 		updateThreadTitle,
 		type StreamChatEvent
@@ -115,6 +117,32 @@
 					createThreadMutation.mutate({ replaceState: true });
 				}
 			}
+		}
+	}));
+
+	const deleteMessagePairMutation = createMutation(() => ({
+		mutationFn: ({ targetThreadId, messageId }: { targetThreadId: string; messageId: string }) =>
+			deleteMessagePair(targetThreadId, messageId),
+		onSuccess: (_, { targetThreadId, messageId }) => {
+			const threadMessages = messagesByThread[targetThreadId] ?? [];
+			const index = threadMessages.findIndex((m) => m.id === messageId);
+			if (index === -1) return;
+			const nextMessages = threadMessages.slice(0, index);
+			updateThreadMessages(targetThreadId, nextMessages);
+			queryClient.invalidateQueries({ queryKey: threadKeys.messages(targetThreadId) });
+		}
+	}));
+
+	const forkThreadMutation = createMutation(() => ({
+		mutationFn: ({ targetThreadId, messageId }: { targetThreadId: string; messageId: string }) =>
+			forkThread(targetThreadId, messageId),
+		onSuccess: async (newThread) => {
+			queryClient.setQueryData<Thread[]>(threadKeys.all, (current) => [
+				newThread,
+				...(current ?? [])
+			]);
+			updateThreadMessages(newThread.id, []);
+			await gotoThread(newThread.id, false);
 		}
 	}));
 
@@ -508,6 +536,16 @@
 		deleteThreadMutation.mutate(targetId);
 	}
 
+	function handleDeleteMessagePair(messageId: string) {
+		if (!threadId) return;
+		deleteMessagePairMutation.mutate({ targetThreadId: threadId, messageId });
+	}
+
+	function handleForkFromMessage(messageId: string) {
+		if (!threadId) return;
+		forkThreadMutation.mutate({ targetThreadId: threadId, messageId });
+	}
+
 	async function sendMessage() {
 		if (!activeThread) {
 			return;
@@ -711,6 +749,8 @@
 			{isBootstrapping}
 			{isLoadingMessages}
 			{messages}
+			onDeletePair={handleDeleteMessagePair}
+			onFork={handleForkFromMessage}
 		/>
 
 		<ChatComposer
