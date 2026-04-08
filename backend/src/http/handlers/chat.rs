@@ -103,7 +103,9 @@ pub async fn complete_prompt(
                     },
                 );
             }
-            Err(_) => {}
+            Err(error) => {
+                eprintln!("failed to load system prompt {system_prompt_id}: {error}");
+            }
         }
     }
 

@@ -42,6 +42,8 @@
 	const selectedSystemPrompt = $derived(
 		systemPrompts.find((p) => p.id === selectedSystemPromptId) ?? null
 	);
+
+	const PREVIEW_LENGTH = 40;
 </script>
 
 <footer class="p-4 md:p-6">
@@ -157,7 +159,9 @@
 							<div class="flex flex-col gap-0.5">
 								<span class="text-xs font-bold">{prompt.name}</span>
 								<span class="truncate text-[9px] text-muted-foreground/50"
-									>{prompt.content.slice(0, 40)}{prompt.content.length > 40 ? '...' : ''}</span
+									>{prompt.content.slice(0, PREVIEW_LENGTH)}{prompt.content.length > PREVIEW_LENGTH
+										? '...'
+										: ''}</span
 								>
 							</div>
 							{#if selectedSystemPromptId === prompt.id}
