@@ -14,10 +14,10 @@ A quick reference for the visual language to keep all pages consistent.
 
 Rounded, but not bubbly. Use the scale with intent:
 
-- `rounded-md` — inputs, small controls
-- `rounded-xl` — cards, dropdowns, sidebars items
-- `rounded-2xl` — message bubbles, callout boxes
-- `rounded-3xl` — empty state cards, large feature containers
+- `rounded-md` — inputs, small controls, dropdown items
+- `rounded-lg` — dropdowns, thread sidebar items, send button
+- `rounded-xl` — cards, message bubbles, callout boxes, composer pill
+- `rounded-2xl` — empty state cards, large feature containers
 - `rounded-full` — avatars, icon buttons, dot indicators
 
 ## Typography
