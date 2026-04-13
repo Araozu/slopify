@@ -33,6 +33,7 @@ pub struct PromptRequest {
     pub model: String,
     pub thread_id: Option<Uuid>,
     pub system_prompt_id: Option<Uuid>,
+    pub provider: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -109,8 +110,23 @@ pub async fn complete_prompt(
         }
     }
 
+    let provider_name = payload.provider;
+    let adapter = match state.providers.resolve(provider_name.as_deref()) {
+        Some(adapter) => adapter,
+        None => {
+            return ApiError {
+                status: StatusCode::BAD_REQUEST,
+                message: "unknown provider".to_string(),
+            }
+            .into_response();
+        }
+    };
+    let provider_display_name = adapter.name().to_string();
+    let provider_endpoint = Some(adapter.endpoint().to_string());
+
     let stream = match chat_service::stream_prompt(
         &state.http_client,
+        adapter,
         payload.prompt.clone(),
         prompt_messages,
         payload.model.clone(),
@@ -142,6 +158,8 @@ pub async fn complete_prompt(
             user_id,
             thread_id,
             &requested_model,
+            &provider_display_name,
+            provider_endpoint.as_deref(),
         ).await {
             Ok(message) => message,
             Err(error) => {
@@ -246,9 +264,9 @@ pub async fn complete_prompt(
             status: ChatMessageStatus::Completed,
             parts: build_parts(&text, &reasoning),
             provider: ProviderDescriptor {
-                provider: "openrouter".to_string(),
+                provider: provider_display_name.clone(),
                 model: resolved_model.clone(),
-                endpoint: Some("https://openrouter.ai/api/v1/chat/completions".to_string()),
+                endpoint: provider_endpoint.clone(),
             },
             created_at: started.created_at.clone(),
             metadata: ClientChatMessageMetadata {
@@ -371,11 +389,13 @@ async fn build_initial_message(
     user_id: Uuid,
     thread_id: Option<Uuid>,
     model: &str,
+    provider_name: &str,
+    provider_endpoint: Option<&str>,
 ) -> Result<ClientChatMessage, ThreadServiceError> {
     let provider = ProviderDescriptor {
-        provider: "openrouter".to_string(),
+        provider: provider_name.to_string(),
         model: model.to_string(),
-        endpoint: Some("https://openrouter.ai/api/v1/chat/completions".to_string()),
+        endpoint: provider_endpoint.map(String::from),
     };
     let created_at = chrono::Utc::now().to_rfc3339();
     let conversation_id = thread_id
@@ -387,7 +407,7 @@ async fn build_initial_message(
             db_pool,
             user_id,
             thread_id,
-            serde_json::to_value(&provider).unwrap_or_else(|_| serde_json::json!({ "provider": "openrouter" })),
+            serde_json::to_value(&provider).unwrap_or_else(|_| serde_json::json!({ "provider": provider_name })),
         )
         .await?;
         return Ok(ClientChatMessage {

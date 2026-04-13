@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::Client;
 use serde_json::Value;
 
 use crate::{
     chat::contracts::PromptMessage,
-    providers::openai_compatible::{self, ProviderStreamEvent},
+    providers::adapter::{ProviderAdapter, ProviderError, ProviderStreamEvent},
 };
 
 #[derive(Debug)]
@@ -12,7 +14,7 @@ pub enum ChatServiceError {
     InvalidPrompt,
     InvalidModel,
     MissingApiKey,
-    Provider(openai_compatible::OpenAiCompatibleError),
+    Provider(ProviderError),
 }
 
 impl std::fmt::Display for ChatServiceError {
@@ -28,8 +30,8 @@ impl std::fmt::Display for ChatServiceError {
 
 impl std::error::Error for ChatServiceError {}
 
-impl From<openai_compatible::OpenAiCompatibleError> for ChatServiceError {
-    fn from(value: openai_compatible::OpenAiCompatibleError) -> Self {
+impl From<ProviderError> for ChatServiceError {
+    fn from(value: ProviderError) -> Self {
         Self::Provider(value)
     }
 }
@@ -47,29 +49,37 @@ pub enum ChatServiceStreamEvent {
 
 pub async fn stream_prompt(
     client: &Client,
+    adapter: Arc<dyn ProviderAdapter>,
     prompt: String,
     messages: Vec<PromptMessage>,
     model: String,
     authorization: Option<&str>,
 ) -> Result<BoxStream<'static, Result<ChatServiceStreamEvent, ChatServiceError>>, ChatServiceError> {
-    let (_trimmed_prompt, trimmed_model, api_key) = validate_request(&prompt, &model, authorization)?;
-    let stream = openai_compatible::stream_prompt(client, &messages, trimmed_model, api_key).await?;
+    let (trimmed_model, api_key) = validate_request(&prompt, &model, authorization)?;
 
-    let mapped_stream = stream.map(|event| match event {
-        Ok(ProviderStreamEvent::TextDelta(delta)) => Ok(ChatServiceStreamEvent::TextDelta(delta)),
-        Ok(ProviderStreamEvent::ReasoningDelta(delta)) => {
-            Ok(ChatServiceStreamEvent::ReasoningDelta(delta))
+    let stream = adapter
+        .stream_prompt(client, &messages, trimmed_model, api_key)
+        .await?;
+
+    let mapped_stream = stream.map(|event| {
+        match event {
+            Ok(ProviderStreamEvent::TextDelta(delta)) => {
+                Ok(ChatServiceStreamEvent::TextDelta(delta))
+            }
+            Ok(ProviderStreamEvent::ReasoningDelta(delta)) => {
+                Ok(ChatServiceStreamEvent::ReasoningDelta(delta))
+            }
+            Ok(ProviderStreamEvent::Completed {
+                model,
+                finish_reason,
+                vendor_metadata,
+            }) => Ok(ChatServiceStreamEvent::Completed {
+                model,
+                finish_reason,
+                vendor_metadata,
+            }),
+            Err(error) => Err(ChatServiceError::Provider(error)),
         }
-        Ok(ProviderStreamEvent::Completed {
-            model,
-            finish_reason,
-            vendor_metadata,
-        }) => Ok(ChatServiceStreamEvent::Completed {
-            model,
-            finish_reason,
-            vendor_metadata,
-        }),
-        Err(error) => Err(ChatServiceError::Provider(error)),
     });
 
     Ok(Box::pin(mapped_stream))
@@ -79,7 +89,7 @@ fn validate_request<'a>(
     prompt: &'a str,
     model: &'a str,
     authorization: Option<&'a str>,
-) -> Result<(&'a str, &'a str, &'a str), ChatServiceError> {
+) -> Result<(&'a str, &'a str), ChatServiceError> {
     let trimmed_prompt = prompt.trim();
     if trimmed_prompt.is_empty() {
         return Err(ChatServiceError::InvalidPrompt);
@@ -99,5 +109,5 @@ fn validate_request<'a>(
         .filter(|value| !value.is_empty())
         .ok_or(ChatServiceError::MissingApiKey)?;
 
-    Ok((trimmed_prompt, trimmed_model, api_key))
+    Ok((trimmed_model, api_key))
 }
