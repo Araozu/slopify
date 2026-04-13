@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use crate::{
     chat::contracts::PromptMessage,
-    providers::openai_compatible::{self, ProviderStreamEvent},
+    providers::{r#trait::ProviderError, registry::ProviderRegistry},
 };
 
 #[derive(Debug)]
@@ -12,7 +12,8 @@ pub enum ChatServiceError {
     InvalidPrompt,
     InvalidModel,
     MissingApiKey,
-    Provider(openai_compatible::OpenAiCompatibleError),
+    UnknownProvider,
+    Provider(ProviderError),
 }
 
 impl std::fmt::Display for ChatServiceError {
@@ -21,6 +22,7 @@ impl std::fmt::Display for ChatServiceError {
             Self::InvalidPrompt => write!(f, "prompt is required"),
             Self::InvalidModel => write!(f, "model is required"),
             Self::MissingApiKey => write!(f, "an authorization bearer token is required"),
+            Self::UnknownProvider => write!(f, "unknown provider"),
             Self::Provider(error) => write!(f, "{error}"),
         }
     }
@@ -28,8 +30,8 @@ impl std::fmt::Display for ChatServiceError {
 
 impl std::error::Error for ChatServiceError {}
 
-impl From<openai_compatible::OpenAiCompatibleError> for ChatServiceError {
-    fn from(value: openai_compatible::OpenAiCompatibleError) -> Self {
+impl From<ProviderError> for ChatServiceError {
+    fn from(value: ProviderError) -> Self {
         Self::Provider(value)
     }
 }
@@ -47,29 +49,43 @@ pub enum ChatServiceStreamEvent {
 
 pub async fn stream_prompt(
     client: &Client,
+    providers: &ProviderRegistry,
+    provider_name: Option<&str>,
     prompt: String,
     messages: Vec<PromptMessage>,
     model: String,
     authorization: Option<&str>,
 ) -> Result<BoxStream<'static, Result<ChatServiceStreamEvent, ChatServiceError>>, ChatServiceError> {
     let (_trimmed_prompt, trimmed_model, api_key) = validate_request(&prompt, &model, authorization)?;
-    let stream = openai_compatible::stream_prompt(client, &messages, trimmed_model, api_key).await?;
 
-    let mapped_stream = stream.map(|event| match event {
-        Ok(ProviderStreamEvent::TextDelta(delta)) => Ok(ChatServiceStreamEvent::TextDelta(delta)),
-        Ok(ProviderStreamEvent::ReasoningDelta(delta)) => {
-            Ok(ChatServiceStreamEvent::ReasoningDelta(delta))
+    let adapter = providers
+        .resolve(provider_name)
+        .ok_or(ChatServiceError::UnknownProvider)?;
+
+    let stream = adapter
+        .stream_prompt(client, &messages, trimmed_model, api_key)
+        .await?;
+
+    let mapped_stream = stream.map(|event| {
+        use crate::providers::r#trait::ProviderStreamEvent;
+        match event {
+            Ok(ProviderStreamEvent::TextDelta(delta)) => {
+                Ok(ChatServiceStreamEvent::TextDelta(delta))
+            }
+            Ok(ProviderStreamEvent::ReasoningDelta(delta)) => {
+                Ok(ChatServiceStreamEvent::ReasoningDelta(delta))
+            }
+            Ok(ProviderStreamEvent::Completed {
+                model,
+                finish_reason,
+                vendor_metadata,
+            }) => Ok(ChatServiceStreamEvent::Completed {
+                model,
+                finish_reason,
+                vendor_metadata,
+            }),
+            Err(error) => Err(ChatServiceError::Provider(error)),
         }
-        Ok(ProviderStreamEvent::Completed {
-            model,
-            finish_reason,
-            vendor_metadata,
-        }) => Ok(ChatServiceStreamEvent::Completed {
-            model,
-            finish_reason,
-            vendor_metadata,
-        }),
-        Err(error) => Err(ChatServiceError::Provider(error)),
     });
 
     Ok(Box::pin(mapped_stream))
