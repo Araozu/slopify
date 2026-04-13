@@ -100,21 +100,21 @@
 						<p class="mt-3 text-sm font-bold tracking-tight">{user.name}</p>
 					</div>
 
-				<div class="rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
-					<div class="flex items-center gap-2 text-primary/60">
-						<EnvelopeSimpleIcon size={16} weight="bold" />
-						<span class="text-[10px] font-black tracking-widest uppercase">Email</span>
+					<div class="rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
+						<div class="flex items-center gap-2 text-primary/60">
+							<EnvelopeSimpleIcon size={16} weight="bold" />
+							<span class="text-[10px] font-black tracking-widest uppercase">Email</span>
+						</div>
+						<p class="mt-3 truncate text-sm font-bold tracking-tight">{user.email}</p>
 					</div>
-					<p class="mt-3 truncate text-sm font-bold tracking-tight">{user.email}</p>
-				</div>
 
-				<div class="rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
-					<div class="flex items-center gap-2 text-primary/60">
-						<FingerprintIcon size={16} weight="bold" />
-						<span class="text-[10px] font-black tracking-widest uppercase">User ID</span>
+					<div class="rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
+						<div class="flex items-center gap-2 text-primary/60">
+							<FingerprintIcon size={16} weight="bold" />
+							<span class="text-[10px] font-black tracking-widest uppercase">User ID</span>
+						</div>
+						<p class="mt-3 font-mono text-[10px] text-muted-foreground/70">{user.id}</p>
 					</div>
-					<p class="mt-3 font-mono text-[10px] text-muted-foreground/70">{user.id}</p>
-				</div>
 				</div>
 			</section>
 

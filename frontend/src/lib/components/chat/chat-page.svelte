@@ -44,7 +44,7 @@
 		threadId: string;
 	}
 
-	const DEFAULT_MODEL = 'openai/gpt-4o-mini';
+	const DEFAULT_MODEL = '';
 	const DEFAULT_THREAD_TITLE = 'New thread';
 	const STREAM_LOG_LIMIT = 100;
 	const STREAM_FLUSH_INTERVAL_MS = 50;
