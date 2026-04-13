@@ -58,7 +58,7 @@
 			{#each chatThreads as chat (chat.id)}
 				<div
 					class={cn(
-						'group flex w-full items-stretch gap-0.5 rounded-xl transition-all',
+						'group flex w-full items-stretch gap-0.5 rounded-lg transition-all',
 						threadId === chat.id
 							? 'bg-background shadow-sm ring-1 shadow-primary/5 ring-border'
 							: 'hover:bg-muted/80'

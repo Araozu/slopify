@@ -23,7 +23,7 @@
 	</Avatar.Root>
 	<div class="flex max-w-[85%] flex-col items-end gap-2.5">
 		<div
-			class="rounded-2xl bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-primary/20"
+			class="rounded-xl bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-primary/20"
 		>
 			{getMessageText(message)}
 		</div>

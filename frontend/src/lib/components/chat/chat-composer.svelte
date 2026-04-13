@@ -98,7 +98,7 @@
 					>key</span
 				>
 			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="w-56 rounded-xl shadow-xl">
+			<DropdownMenu.Content align="start" class="w-56 rounded-lg shadow-xl">
 				<DropdownMenu.Label
 					class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase"
 					>Select provider key</DropdownMenu.Label
@@ -118,7 +118,7 @@
 				{:else}
 					{#each keys as key (key.id)}
 						<DropdownMenu.Item
-							class="flex items-center justify-between rounded-lg py-2"
+							class="flex items-center justify-between rounded-md py-2"
 							onclick={() => onSelectKey(key.id)}
 						>
 							<div class="flex flex-col gap-0.5">
@@ -155,14 +155,14 @@
 					>system</span
 				>
 			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="w-64 rounded-xl shadow-xl">
+			<DropdownMenu.Content align="start" class="w-64 rounded-lg shadow-xl">
 				<DropdownMenu.Label
 					class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase"
 					>Select system prompt</DropdownMenu.Label
 				>
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item
-					class="flex items-center justify-between rounded-lg py-2"
+					class="flex items-center justify-between rounded-md py-2"
 					onclick={() => onSelectSystemPrompt(null)}
 				>
 					<span class="text-xs text-muted-foreground/60">None</span>
@@ -184,7 +184,7 @@
 				{:else}
 					{#each systemPrompts as prompt (prompt.id)}
 						<DropdownMenu.Item
-							class="flex items-center justify-between rounded-lg py-2"
+							class="flex items-center justify-between rounded-md py-2"
 							onclick={() => onSelectSystemPrompt(prompt.id)}
 						>
 							<div class="flex flex-col gap-0.5">
@@ -221,7 +221,7 @@
 						</span>
 					</div>
 				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="start" class="w-72 rounded-xl shadow-xl">
+				<DropdownMenu.Content align="start" class="w-72 rounded-lg shadow-xl">
 					<DropdownMenu.Label
 						class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase"
 						>Select or type model</DropdownMenu.Label
@@ -289,7 +289,7 @@
 		</div>
 	</div>
 	<div
-		class="mx-auto flex max-w-3xl items-center gap-3 rounded-[20px] bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
+		class="mx-auto flex max-w-3xl items-center gap-3 rounded-xl bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
 	>
 		<Input
 			bind:value={draft}
@@ -301,7 +301,7 @@
 		<Button
 			size="icon-sm"
 			variant="default"
-			class="h-9 w-9 rounded-[14px] shadow-lg shadow-primary/20 transition-transform active:scale-95"
+			class="h-9 w-9 rounded-lg shadow-lg shadow-primary/20 transition-transform active:scale-95"
 			disabled={isSending ||
 				isBootstrapping ||
 				!activeThread ||

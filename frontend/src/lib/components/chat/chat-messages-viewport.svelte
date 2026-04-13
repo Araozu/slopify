@@ -31,7 +31,7 @@
 				class="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-4 py-6 md:px-6 md:py-10"
 			>
 				<p
-					class="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+					class="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
 				>
 					{loadError}
 				</p>
@@ -48,7 +48,7 @@
 			<div
 				class="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-4 py-6 md:px-6 md:py-10"
 			>
-				<div class="max-w-sm rounded-3xl border bg-background/80 px-6 py-8 text-center shadow-sm">
+				<div class="max-w-sm rounded-2xl border bg-background/80 px-6 py-8 text-center shadow-sm">
 					<h2 class="text-base font-semibold">Empty thread</h2>
 					<p class="mt-2 text-sm text-muted-foreground">
 						Send the first message to start this chat.

@@ -33,7 +33,7 @@
 	</Avatar.Root>
 	<div class="flex w-full max-w-[85%] flex-col items-start gap-2.5">
 		<div
-			class="prose prose-sm w-full max-w-none rounded-2xl bg-background/80 font-mono text-xs leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-border backdrop-blur-md prose-neutral dark:prose-invert"
+			class="prose prose-sm w-full max-w-none rounded-xl bg-background/80 font-mono text-xs leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-border backdrop-blur-md prose-neutral dark:prose-invert"
 		>
 			{#if hideStreamingContent}
 				<div
@@ -48,7 +48,7 @@
 				</div>
 			{:else}
 				{#if getMessageReasoning(message)}
-					<details class="rounded-t-2xl border-b border-border/70 bg-muted/30 px-3 pt-3 pb-2">
+					<details class="rounded-t-xl border-b border-border/70 bg-muted/30 px-3 pt-3 pb-2">
 						<summary class="cursor-pointer text-[10px] font-bold tracking-wide uppercase">
 							Reasoning
 						</summary>

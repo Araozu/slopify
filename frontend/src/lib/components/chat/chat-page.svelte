@@ -19,8 +19,7 @@
 		deleteMessagePair,
 		forkThread,
 		streamChatCompletion,
-		updateThreadTitle,
-		type StreamChatEvent
+		updateThreadTitle
 	} from '$lib/thread-client';
 	import { createOpenRouterModel } from '$lib/openrouter-model-client';
 	import type {
@@ -46,7 +45,6 @@
 
 	const DEFAULT_MODEL = '';
 	const DEFAULT_THREAD_TITLE = 'New thread';
-	const STREAM_LOG_LIMIT = 100;
 	const STREAM_FLUSH_INTERVAL_MS = 50;
 
 	let { threadId }: Props = $props();
@@ -57,9 +55,6 @@
 	let model = $state(DEFAULT_MODEL);
 	let isSending = $state(false);
 	let hasRequestedInitialThread = $state(false);
-	let streamEvents = $state<
-		Array<{ id: string; timestamp: string; type: StreamChatEvent['type']; detail: string }>
-	>([]);
 	let pendingStreamUpdates = $state<
 		Record<string, { threadId: string; messageId: string; text: string; reasoning: string }>
 	>({});
@@ -95,10 +90,6 @@
 		mutationFn: (modelId: string) => createOpenRouterModel(modelId),
 		onSuccess: async () => {
 			await invalidateOpenRouterModels(queryClient);
-		},
-		onError: (error: unknown) => {
-			const message = error instanceof Error ? error.message : 'Failed to save model.';
-			pushStreamEvent('message_failed', `save model failed: ${message}`);
 		}
 	}));
 
@@ -410,17 +401,6 @@
 		};
 	}
 
-	function pushStreamEvent(type: StreamChatEvent['type'], detail: string) {
-		const nextEvent = {
-			id: crypto.randomUUID(),
-			timestamp: new Date().toISOString(),
-			type,
-			detail
-		};
-
-		streamEvents = [...streamEvents, nextEvent].slice(-STREAM_LOG_LIMIT);
-	}
-
 	function upsertAssistantMessage(targetThreadId: string, message: Message) {
 		const threadMessages = messagesByThread[targetThreadId] ?? [];
 		const normalized = normalizeMessage(message);
@@ -592,7 +572,6 @@
 		updateThreadMessages(requestThreadId, [...messages, userMessage]);
 		draft = '';
 		isSending = true;
-		streamEvents = [];
 		pendingStreamUpdates = {};
 
 		try {
@@ -616,7 +595,6 @@
 								...message,
 								status: 'streaming'
 							});
-							pushStreamEvent(event.type, `assistant ${message.id} started`);
 							break;
 						}
 						case 'text_delta': {
@@ -626,22 +604,15 @@
 								'text',
 								event.payload.delta
 							);
-							pushStreamEvent(
-								event.type,
-								`${event.payload.message_id} +${event.payload.delta.length} text`
-							);
 							break;
 						}
+
 						case 'reasoning_delta': {
 							queueStreamDelta(
 								requestThreadId,
 								event.payload.message_id,
 								'reasoning',
 								event.payload.delta
-							);
-							pushStreamEvent(
-								event.type,
-								`${event.payload.message_id} +${event.payload.delta.length} reasoning`
 							);
 							break;
 						}
@@ -652,7 +623,6 @@
 								...completed,
 								status: 'completed'
 							});
-							pushStreamEvent(event.type, `assistant ${completed.id} completed`);
 							const completedModel = completed.provider?.model;
 							if (completedModel && !activeThread?.model) {
 								queryClient.setQueryData<Thread[]>(threadKeys.all, (currentThreads) =>
@@ -678,10 +648,6 @@
 									content: getMessageText({ ...message, parts: nextParts })
 								};
 							});
-							pushStreamEvent(
-								event.type,
-								`${event.payload.message_id} failed: ${event.payload.error.message}`
-							);
 							break;
 						}
 					}
@@ -689,7 +655,6 @@
 			);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to send prompt.';
-			pushStreamEvent('message_failed', `request failed: ${message}`);
 			updateThreadMessages(requestThreadId, [
 				...(messagesByThread[requestThreadId] ?? []),
 				createMessage('assistant', `Error: ${message}`)
@@ -797,5 +762,5 @@
 		/>
 	</main>
 
-	<StreamLogSidebar collapsed={sidebarCollapsed} {streamEvents} />
+	<StreamLogSidebar collapsed={sidebarCollapsed} />
 </div>
