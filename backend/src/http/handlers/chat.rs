@@ -110,7 +110,7 @@ pub async fn complete_prompt(
         }
     }
 
-    let provider_name = payload.provider.clone();
+    let provider_name = payload.provider;
     let stream = match chat_service::stream_prompt(
         &state.http_client,
         &state.providers,
@@ -126,7 +126,6 @@ pub async fn complete_prompt(
         Err(error) => return ApiError::from(error).into_response(),
     };
 
-    let provider_name_for_stream = provider_name.clone();
     let db_pool = state.db_pool.clone();
     let user_id = session.user_id;
     let requested_model = payload.model.clone();
@@ -143,7 +142,7 @@ pub async fn complete_prompt(
         let flush_every = Duration::from_millis(500);
         let flush_delta_count = 48usize;
 
-        let adapter = providers.resolve(provider_name_for_stream.as_deref());
+        let adapter = providers.resolve(provider_name.as_deref());
         let (provider_display_name, provider_endpoint) = match &adapter {
             Some(a) => (a.name().to_string(), Some(a.endpoint().to_string())),
             None => ("unknown".to_string(), None),
