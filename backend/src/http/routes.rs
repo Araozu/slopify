@@ -6,7 +6,9 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
-    http::handlers::{auth, chat, health, openrouter_keys, streams, system_prompts, threads},
+    http::handlers::{
+        auth, chat, health, openrouter_keys, openrouter_models, streams, system_prompts, threads,
+    },
     state::AppState,
 };
 
@@ -24,8 +26,7 @@ fn api_router() -> Router<AppState> {
         .route("/v1/auth/me", get(auth::me))
         .route(
             "/v1/openrouter-keys",
-            get(openrouter_keys::list_openrouter_keys)
-                .post(openrouter_keys::create_openrouter_key),
+            get(openrouter_keys::list_openrouter_keys).post(openrouter_keys::create_openrouter_key),
         )
         .route(
             "/v1/openrouter-keys/{key_id}",
@@ -33,9 +34,17 @@ fn api_router() -> Router<AppState> {
                 .delete(openrouter_keys::delete_openrouter_key),
         )
         .route(
+            "/v1/openrouter-models",
+            get(openrouter_models::list_openrouter_models)
+                .post(openrouter_models::create_openrouter_model),
+        )
+        .route(
+            "/v1/openrouter-models/{id}",
+            axum::routing::delete(openrouter_models::delete_openrouter_model),
+        )
+        .route(
             "/v1/system-prompts",
-            get(system_prompts::list_system_prompts)
-                .post(system_prompts::create_system_prompt),
+            get(system_prompts::list_system_prompts).post(system_prompts::create_system_prompt),
         )
         .route(
             "/v1/system-prompts/{prompt_id}",

@@ -42,20 +42,20 @@
 	</header>
 
 	<div class="flex-1 overflow-y-auto">
-		<div class="mx-auto w-full max-w-3xl space-y-12 px-4 py-6 md:px-6 md:py-10">
-			<section class="space-y-6">
-				<div class="flex items-center gap-6">
+		<div class="mx-auto w-full max-w-3xl space-y-10 px-4 py-6 md:px-6 md:py-10">
+			<section class="space-y-4">
+				<div class="flex items-center gap-4">
 					<div
-						class="flex h-20 w-20 items-center justify-center rounded-[2rem] bg-primary text-3xl font-black text-primary-foreground shadow-lg shadow-primary/20"
+						class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-base font-black text-primary-foreground shadow-lg shadow-primary/20"
 					>
 						{initials}
 					</div>
-					<div class="space-y-1">
-						<p class="text-[10px] font-black tracking-[0.2em] text-muted-foreground/50 uppercase">
+					<div class="space-y-0.5">
+						<p class="text-[10px] font-black tracking-widest text-muted-foreground/50 uppercase">
 							Account Owner
 						</p>
-						<h2 class="text-3xl font-bold tracking-tight">{user.name}</h2>
-						<p class="text-sm text-muted-foreground/60">{user.email}</p>
+						<h2 class="text-base font-bold tracking-tight">{user.name}</h2>
+						<p class="text-xs text-muted-foreground/60">{user.email}</p>
 					</div>
 				</div>
 
@@ -92,7 +92,7 @@
 					Identity Details
 				</h3>
 				<div class="grid gap-3 md:grid-cols-3">
-					<div class="rounded-2xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
+					<div class="rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
 						<div class="flex items-center gap-2 text-primary/60">
 							<UserCircleIcon size={16} weight="bold" />
 							<span class="text-[10px] font-black tracking-widest uppercase">Name</span>
@@ -100,21 +100,21 @@
 						<p class="mt-3 text-sm font-bold tracking-tight">{user.name}</p>
 					</div>
 
-					<div class="rounded-2xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
-						<div class="flex items-center gap-2 text-primary/60">
-							<EnvelopeSimpleIcon size={16} weight="bold" />
-							<span class="text-[10px] font-black tracking-widest uppercase">Email</span>
-						</div>
-						<p class="mt-3 truncate text-sm font-bold tracking-tight">{user.email}</p>
+				<div class="rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
+					<div class="flex items-center gap-2 text-primary/60">
+						<EnvelopeSimpleIcon size={16} weight="bold" />
+						<span class="text-[10px] font-black tracking-widest uppercase">Email</span>
 					</div>
+					<p class="mt-3 truncate text-sm font-bold tracking-tight">{user.email}</p>
+				</div>
 
-					<div class="rounded-2xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
-						<div class="flex items-center gap-2 text-primary/60">
-							<FingerprintIcon size={16} weight="bold" />
-							<span class="text-[10px] font-black tracking-widest uppercase">User ID</span>
-						</div>
-						<p class="mt-3 font-mono text-[10px] text-muted-foreground/70">{user.id}</p>
+				<div class="rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
+					<div class="flex items-center gap-2 text-primary/60">
+						<FingerprintIcon size={16} weight="bold" />
+						<span class="text-[10px] font-black tracking-widest uppercase">User ID</span>
 					</div>
+					<p class="mt-3 font-mono text-[10px] text-muted-foreground/70">{user.id}</p>
+				</div>
 				</div>
 			</section>
 
@@ -123,12 +123,12 @@
 					Chat preferences
 				</h3>
 				<div
-					class="rounded-2xl border bg-card/50 p-5 shadow-sm ring-1 ring-border/40 backdrop-blur-sm"
+					class="rounded-xl border bg-card/50 p-5 shadow-sm ring-1 ring-border/40 backdrop-blur-sm"
 				>
 					<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 						<div class="flex gap-3">
 							<div
-								class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+								class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
 							>
 								<ChatCircleIcon size={18} weight="bold" />
 							</div>

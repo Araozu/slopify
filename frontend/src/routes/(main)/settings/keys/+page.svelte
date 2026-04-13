@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
-	import { KeyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from 'phosphor-svelte';
+	import { KeyIcon, PencilSimpleIcon, TrashIcon } from 'phosphor-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import {
@@ -139,21 +139,21 @@
 	</header>
 
 	<div class="flex-1 overflow-y-auto">
-		<div class="mx-auto w-full max-w-4xl space-y-10 px-4 py-6 md:px-6 md:py-10">
+		<div class="mx-auto w-full max-w-3xl space-y-10 px-4 py-6 md:px-6 md:py-10">
 			<section class="space-y-4">
 				<div class="space-y-1">
-					<p class="text-[10px] font-black tracking-[0.2em] text-muted-foreground/50 uppercase">
+					<p class="text-[10px] font-black tracking-widest text-muted-foreground/50 uppercase">
 						Provider configuration
 					</p>
-					<h2 class="text-3xl font-bold tracking-tight">OpenRouter Keys</h2>
-					<p class="max-w-2xl text-sm text-muted-foreground/60">
+					<h2 class="text-base font-bold tracking-tight">OpenRouter Keys</h2>
+					<p class="max-w-2xl text-xs text-muted-foreground/60">
 						Saved keys are attached to your account. Label them clearly to stay organized across
 						different workspaces.
 					</p>
 				</div>
 
 				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="rounded-3xl border bg-muted/30 p-5 shadow-inner ring-1 ring-border/50">
+					<div class="rounded-xl border bg-muted/30 p-4 shadow-inner ring-1 ring-border/50">
 						<p class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
 							Unique Labels
 						</p>
@@ -161,7 +161,7 @@
 							Each key name must be distinct within your account to prevent collision.
 						</p>
 					</div>
-					<div class="rounded-3xl border bg-muted/30 p-5 shadow-inner ring-1 ring-border/50">
+					<div class="rounded-xl border bg-muted/30 p-4 shadow-inner ring-1 ring-border/50">
 						<p class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
 							Query Cache
 						</p>
@@ -173,17 +173,14 @@
 			</section>
 
 			<div class="grid gap-8 lg:grid-cols-[1fr_1.5fr]">
-				<section class="space-y-6">
-					<div class="flex items-center gap-3">
-						<div class="rounded-xl bg-primary/10 p-2 text-primary shadow-sm ring-1 ring-primary/20">
-							<PlusIcon size={16} weight="bold" />
-						</div>
-						<h3 class="text-sm font-bold tracking-tight uppercase">Add a key</h3>
-					</div>
+				<section class="space-y-4">
+					<h3 class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
+						Add a key
+					</h3>
 
-					<div class="rounded-[2rem] border bg-card/50 p-6 shadow-sm backdrop-blur-sm">
-						<form class="space-y-5" onsubmit={submitCreate}>
-							<div class="space-y-2">
+					<div class="rounded-xl border bg-card/50 p-5 shadow-sm backdrop-blur-sm">
+						<form class="space-y-4" onsubmit={submitCreate}>
+							<div class="space-y-1.5">
 								<label
 									class="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase"
 									for="key-name">Label</label
@@ -192,12 +189,12 @@
 									id="key-name"
 									bind:value={newKeyName}
 									placeholder="Personal workspace"
-									class="h-10 rounded-xl bg-background/50"
+									class="h-8 rounded-md bg-background/50"
 									disabled={createKeyMutation.isPending}
 								/>
 							</div>
 
-							<div class="space-y-2">
+							<div class="space-y-1.5">
 								<label
 									class="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase"
 									for="api-key">API key</label
@@ -207,7 +204,7 @@
 									bind:value={newApiKey}
 									type="password"
 									placeholder="sk-or-v1-..."
-									class="h-10 rounded-xl bg-background/50"
+									class="h-8 rounded-md bg-background/50"
 									disabled={createKeyMutation.isPending}
 								/>
 							</div>
@@ -222,7 +219,7 @@
 
 							<Button
 								type="submit"
-								class="h-10 w-full rounded-xl shadow-lg shadow-primary/10 transition-transform active:scale-[0.98]"
+								class="h-8 w-full rounded-md shadow-sm shadow-primary/10 transition-transform active:scale-[0.98]"
 								disabled={createKeyMutation.isPending}
 							>
 								{createKeyMutation.isPending ? 'Saving...' : 'Save key'}
@@ -231,16 +228,11 @@
 					</div>
 				</section>
 
-				<section class="space-y-6">
+				<section class="space-y-4">
 					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-3">
-							<div
-								class="rounded-xl bg-primary/10 p-2 text-primary shadow-sm ring-1 ring-primary/20"
-							>
-								<KeyIcon size={16} weight="fill" />
-							</div>
-							<h3 class="text-sm font-bold tracking-tight uppercase">Saved keys</h3>
-						</div>
+						<h3 class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
+							Saved keys
+						</h3>
 						<span
 							class="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase ring-1 ring-border/50"
 						>
@@ -256,21 +248,21 @@
 						</p>
 					{/if}
 
-					<div class="space-y-4">
+					<div class="space-y-3">
 						{#if openRouterKeysQuery.isPending}
 							<div
-								class="rounded-3xl border border-dashed bg-muted/20 px-5 py-12 text-center text-xs font-medium tracking-widest text-muted-foreground/40 uppercase"
+								class="rounded-xl border border-dashed bg-muted/20 px-5 py-12 text-center text-xs font-medium tracking-widest text-muted-foreground/40 uppercase"
 							>
 								Loading keys...
 							</div>
 						{:else if keys.length === 0}
 							<div
-								class="flex flex-col items-center justify-center rounded-3xl border border-dashed bg-muted/20 px-5 py-12 text-center"
+								class="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/20 px-5 py-12 text-center"
 							>
 								<div
-									class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/5 text-primary/30"
+									class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/5 text-primary/30"
 								>
-									<KeyIcon size={24} weight="fill" />
+									<KeyIcon size={20} weight="fill" />
 								</div>
 								<h4 class="mt-4 text-sm font-bold tracking-tight">No keys saved yet</h4>
 								<p class="mt-1 text-xs text-muted-foreground/50">
@@ -280,9 +272,9 @@
 						{:else}
 							{#each keys as key (key.id)}
 								{@const draft = getDraft(key)}
-								<div class="rounded-[2rem] border bg-card/50 p-6 shadow-sm backdrop-blur-sm">
-									<div class="flex flex-wrap items-start justify-between gap-4">
-										<div class="space-y-1">
+								<div class="rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
+									<div class="flex flex-wrap items-start justify-between gap-3">
+										<div class="space-y-0.5">
 											<p
 												class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase"
 											>
@@ -294,28 +286,28 @@
 											<Button
 												variant="outline"
 												size="sm"
-												class="h-8 rounded-lg px-3 text-[11px] font-bold tracking-wider uppercase"
+												class="h-7 rounded-md px-3 text-[11px] font-bold tracking-wider uppercase"
 												disabled={!hasDraftChanges(key) || updateKeyMutation.isPending}
 												onclick={() => submitUpdate(key)}
 											>
-												<PencilSimpleIcon size={14} weight="bold" class="mr-1.5" />
+												<PencilSimpleIcon size={13} weight="bold" class="mr-1.5" />
 												<span>{updateKeyMutation.isPending ? 'Saving' : 'Save'}</span>
 											</Button>
 											<Button
 												variant="outline"
 												size="sm"
-												class="h-8 rounded-lg px-3 text-[11px] font-bold tracking-wider text-destructive uppercase hover:bg-destructive/10 hover:text-destructive"
+												class="h-7 rounded-md px-3 text-[11px] font-bold tracking-wider text-destructive uppercase hover:bg-destructive/10 hover:text-destructive"
 												disabled={deleteKeyMutation.isPending}
 												onclick={() => handleDelete(key.id)}
 											>
-												<TrashIcon size={14} weight="bold" class="mr-1.5" />
+												<TrashIcon size={13} weight="bold" class="mr-1.5" />
 												<span>{deleteKeyMutation.isPending ? 'Deleting' : 'Delete'}</span>
 											</Button>
 										</div>
 									</div>
 
-									<div class="mt-6 grid gap-4 sm:grid-cols-2">
-										<div class="space-y-2">
+									<div class="mt-4 grid gap-3 sm:grid-cols-2">
+										<div class="space-y-1.5">
 											<label
 												class="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase"
 												for={`name-${key.id}`}>Label</label
@@ -324,12 +316,12 @@
 												id={`name-${key.id}`}
 												value={draft.name}
 												placeholder="Workspace label"
-												class="h-10 rounded-xl bg-background/50"
+												class="h-8 rounded-md bg-background/50"
 												oninput={(event) => updateDraft(key.id, 'name', event.currentTarget.value)}
 											/>
 										</div>
 
-										<div class="space-y-2">
+										<div class="space-y-1.5">
 											<label
 												class="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase"
 												for={`value-${key.id}`}>API key</label
@@ -339,7 +331,7 @@
 												value={draft.apiKey}
 												type="password"
 												placeholder="sk-or-v1-..."
-												class="h-10 rounded-xl bg-background/50"
+												class="h-8 rounded-md bg-background/50"
 												oninput={(event) =>
 													updateDraft(key.id, 'apiKey', event.currentTarget.value)}
 											/>

@@ -5,6 +5,7 @@ mod config;
 mod db;
 mod http;
 mod openrouter_keys;
+mod openrouter_models;
 mod providers;
 mod services;
 mod state;

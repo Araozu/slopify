@@ -8,6 +8,10 @@
 		threadsQueryOptions
 	} from '$lib/queries/thread-query';
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
+	import {
+		openRouterModelsQueryOptions,
+		invalidateOpenRouterModels
+	} from '$lib/queries/openrouter-model-query';
 	import { systemPromptsQueryOptions } from '$lib/queries/system-prompt-query';
 	import {
 		createThread,
@@ -18,7 +22,14 @@
 		updateThreadTitle,
 		type StreamChatEvent
 	} from '$lib/thread-client';
-	import type { Message, OpenRouterApiKey, SystemPrompt, Thread } from '$lib/types';
+	import { createOpenRouterModel } from '$lib/openrouter-model-client';
+	import type {
+		Message,
+		OpenRouterApiKey,
+		SystemPrompt,
+		Thread,
+		OpenRouterModel
+	} from '$lib/types';
 	import { tick, untrack, onMount } from 'svelte';
 	import ChatComposer from './chat-composer.svelte';
 	import ChatHeader from './chat-header.svelte';
@@ -68,6 +79,7 @@
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
+	const modelsQuery = createQuery(() => openRouterModelsQueryOptions());
 	const systemPromptsQuery = createQuery(() => systemPromptsQueryOptions());
 
 	const keys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
@@ -76,6 +88,19 @@
 
 	const systemPrompts = $derived((systemPromptsQuery.data ?? []) as SystemPrompt[]);
 	let selectedSystemPromptId = $state<string | null>(null);
+
+	const savedModels = $derived((modelsQuery.data ?? []) as OpenRouterModel[]);
+
+	const createModelMutation = createMutation(() => ({
+		mutationFn: (modelId: string) => createOpenRouterModel(modelId),
+		onSuccess: async () => {
+			await invalidateOpenRouterModels(queryClient);
+		},
+		onError: (error: unknown) => {
+			const message = error instanceof Error ? error.message : 'Failed to save model.';
+			pushStreamEvent('message_failed', `save model failed: ${message}`);
+		}
+	}));
 
 	const createThreadMutation = createMutation(() => ({
 		mutationFn: ({ title }: { title?: string; replaceState?: boolean }) => createThread(title),
@@ -760,11 +785,13 @@
 			{selectedKey}
 			{systemPrompts}
 			{selectedSystemPromptId}
+			{savedModels}
 			{isSending}
 			{isBootstrapping}
 			{activeThread}
 			onSelectKey={(id) => (selectedKeyId = id)}
 			onSelectSystemPrompt={(id) => (selectedSystemPromptId = id)}
+			onSaveModel={(modelId) => createModelMutation.mutate(modelId)}
 			onSend={sendMessage}
 			onComposerKeydown={handleComposerKeydown}
 		/>

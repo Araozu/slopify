@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { KeyIcon, PaperPlaneRightIcon, ChatCircleTextIcon } from 'phosphor-svelte';
+	import {
+		KeyIcon,
+		PaperPlaneRightIcon,
+		ChatCircleTextIcon,
+		CubeIcon,
+		PlusIcon
+	} from 'phosphor-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
-	import type { OpenRouterApiKey, SystemPrompt, Thread } from '$lib/types';
+	import type { OpenRouterApiKey, SystemPrompt, Thread, OpenRouterModel } from '$lib/types';
 
 	interface Props {
 		draft?: string;
@@ -14,11 +20,13 @@
 		selectedKey: OpenRouterApiKey | null;
 		systemPrompts: SystemPrompt[];
 		selectedSystemPromptId: string | null;
+		savedModels: OpenRouterModel[];
 		isSending: boolean;
 		isBootstrapping: boolean;
 		activeThread: Thread | null;
 		onSelectKey: (id: string) => void;
 		onSelectSystemPrompt: (id: string | null) => void;
+		onSaveModel: (modelId: string) => void;
 		onSend: () => void;
 		onComposerKeydown: (event: KeyboardEvent) => void;
 	}
@@ -30,17 +38,29 @@
 		selectedKey,
 		systemPrompts,
 		selectedSystemPromptId,
+		savedModels,
 		isSending,
 		isBootstrapping,
 		activeThread,
 		onSelectKey,
 		onSelectSystemPrompt,
+		onSaveModel,
 		onSend,
 		onComposerKeydown
 	}: Props = $props();
 
 	const selectedSystemPrompt = $derived(
 		systemPrompts.find((p) => p.id === selectedSystemPromptId) ?? null
+	);
+
+	const filteredModels = $derived(
+		model.trim()
+			? savedModels.filter((m) => m.modelId.toLowerCase().includes(model.toLowerCase()))
+			: savedModels
+	);
+
+	const isModelAlreadySaved = $derived(
+		savedModels.some((m) => m.modelId.toLowerCase() === model.trim().toLowerCase())
 	);
 
 	const PREVIEW_LENGTH = 40;
@@ -173,15 +193,79 @@
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 
-		<Input
-			bind:value={model}
-			placeholder="openai/gpt-4o-mini"
-			class="h-8 max-w-56 border-border/60 bg-background/70 text-xs"
-			disabled={isSending || isBootstrapping || !activeThread}
-		/>
-		<span class="text-[10px] font-black tracking-widest text-muted-foreground/30 uppercase"
-			>model</span
-		>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="flex h-8 min-w-0 flex-1 items-center justify-between gap-2 rounded-md border border-border/60 bg-background/70 px-3 text-left text-xs transition-all hover:bg-background/90 disabled:opacity-50"
+				disabled={isSending || isBootstrapping || !activeThread}
+			>
+				<div class="flex items-center gap-2 truncate">
+					<CubeIcon
+						size={12}
+						weight={model.trim() ? 'fill' : 'regular'}
+						class={model.trim() ? 'text-primary' : 'text-muted-foreground/40'}
+					/>
+					<span class={model.trim() ? 'text-foreground' : 'text-muted-foreground/40'}>
+						{model.trim() || 'Select model'}
+					</span>
+				</div>
+				<span class="text-[10px] font-black tracking-widest text-muted-foreground/30 uppercase"
+					>model</span
+				>
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="start" class="w-72 rounded-xl shadow-xl">
+				<DropdownMenu.Label
+					class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase"
+					>Select or type model</DropdownMenu.Label
+				>
+				<div class="p-2">
+					<Input
+						bind:value={model}
+						placeholder="openai/gpt-4o-mini"
+						class="h-8 border-border/40 bg-muted/30 text-xs"
+						autofocus
+					/>
+				</div>
+				<DropdownMenu.Separator />
+				<div class="max-h-60 overflow-y-auto p-1">
+					{#if filteredModels.length === 0 && !model.trim()}
+						<div class="px-2 py-3 text-center">
+							<p class="text-[11px] text-muted-foreground/60">No models saved</p>
+							<Button
+								variant="link"
+								class="mt-1 h-auto p-0 text-[10px] font-bold tracking-widest uppercase"
+								onclick={() => goto(resolve('/(main)/settings/openrouter'))}
+							>
+								Manage in settings
+							</Button>
+						</div>
+					{:else}
+						{#each filteredModels as m (m.id)}
+							<DropdownMenu.Item
+								class="flex items-center justify-between rounded-lg py-2"
+								onclick={() => (model = m.modelId)}
+							>
+								<span class="truncate font-mono text-xs">{m.modelId}</span>
+								{#if model === m.modelId}
+									<div class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"></div>
+								{/if}
+							</DropdownMenu.Item>
+						{/each}
+
+						{#if model.trim() && !isModelAlreadySaved}
+							<DropdownMenu.Item
+								class="mt-1 flex items-center gap-2 rounded-lg py-2 text-primary"
+								onclick={() => onSaveModel(model.trim())}
+							>
+								<PlusIcon size={14} weight="bold" />
+								<span class="text-[11px] font-bold tracking-tight uppercase"
+									>Save & select "{model}"</span
+								>
+							</DropdownMenu.Item>
+						{/if}
+					{/if}
+				</div>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 	</div>
 	<div
 		class="mx-auto flex max-w-3xl items-center gap-3 rounded-[20px] bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
@@ -189,7 +273,7 @@
 		<Input
 			bind:value={draft}
 			placeholder="Message Slopify..."
-			class="h-9 border-0 bg-transparent px-3 text-sm placeholder:text-muted-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+			class="dark:bg-initial bg-initial h-9 border-0 px-3 text-sm placeholder:text-muted-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
 			disabled={isSending || isBootstrapping || !activeThread}
 			onkeydown={onComposerKeydown}
 		/>

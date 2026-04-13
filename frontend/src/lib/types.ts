@@ -51,3 +51,8 @@ export interface SystemPrompt {
 	name: string;
 	content: string;
 }
+
+export interface OpenRouterModel {
+	id: string;
+	modelId: string;
+}
