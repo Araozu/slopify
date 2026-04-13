@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::Client;
 use serde_json::Value;
 
 use crate::{
     chat::contracts::PromptMessage,
-    providers::{r#trait::ProviderError, registry::ProviderRegistry},
+    providers::adapter::{ProviderAdapter, ProviderError, ProviderStreamEvent},
 };
 
 #[derive(Debug)]
@@ -12,7 +14,6 @@ pub enum ChatServiceError {
     InvalidPrompt,
     InvalidModel,
     MissingApiKey,
-    UnknownProvider,
     Provider(ProviderError),
 }
 
@@ -22,7 +23,6 @@ impl std::fmt::Display for ChatServiceError {
             Self::InvalidPrompt => write!(f, "prompt is required"),
             Self::InvalidModel => write!(f, "model is required"),
             Self::MissingApiKey => write!(f, "an authorization bearer token is required"),
-            Self::UnknownProvider => write!(f, "unknown provider"),
             Self::Provider(error) => write!(f, "{error}"),
         }
     }
@@ -49,25 +49,19 @@ pub enum ChatServiceStreamEvent {
 
 pub async fn stream_prompt(
     client: &Client,
-    providers: &ProviderRegistry,
-    provider_name: Option<&str>,
+    adapter: Arc<dyn ProviderAdapter>,
     prompt: String,
     messages: Vec<PromptMessage>,
     model: String,
     authorization: Option<&str>,
 ) -> Result<BoxStream<'static, Result<ChatServiceStreamEvent, ChatServiceError>>, ChatServiceError> {
-    let (_trimmed_prompt, trimmed_model, api_key) = validate_request(&prompt, &model, authorization)?;
-
-    let adapter = providers
-        .resolve(provider_name)
-        .ok_or(ChatServiceError::UnknownProvider)?;
+    let (trimmed_model, api_key) = validate_request(&prompt, &model, authorization)?;
 
     let stream = adapter
         .stream_prompt(client, &messages, trimmed_model, api_key)
         .await?;
 
     let mapped_stream = stream.map(|event| {
-        use crate::providers::r#trait::ProviderStreamEvent;
         match event {
             Ok(ProviderStreamEvent::TextDelta(delta)) => {
                 Ok(ChatServiceStreamEvent::TextDelta(delta))
@@ -95,7 +89,7 @@ fn validate_request<'a>(
     prompt: &'a str,
     model: &'a str,
     authorization: Option<&'a str>,
-) -> Result<(&'a str, &'a str, &'a str), ChatServiceError> {
+) -> Result<(&'a str, &'a str), ChatServiceError> {
     let trimmed_prompt = prompt.trim();
     if trimmed_prompt.is_empty() {
         return Err(ChatServiceError::InvalidPrompt);
@@ -115,5 +109,5 @@ fn validate_request<'a>(
         .filter(|value| !value.is_empty())
         .ok_or(ChatServiceError::MissingApiKey)?;
 
-    Ok((trimmed_prompt, trimmed_model, api_key))
+    Ok((trimmed_model, api_key))
 }

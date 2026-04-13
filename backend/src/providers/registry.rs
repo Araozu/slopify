@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::r#trait::ProviderAdapter;
+use super::adapter::ProviderAdapter;
 
 pub struct ProviderRegistry {
     adapters: HashMap<String, Arc<dyn ProviderAdapter>>,

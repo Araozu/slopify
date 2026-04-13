@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::chat::contracts::{ChatRole, PromptMessage};
 
-use super::r#trait::{ProviderAdapter, ProviderError, ProviderStreamEvent};
-use super::sse_utils::{extract_sse_data, pop_sse_frame};
+use super::adapter::{ProviderAdapter, ProviderError, ProviderStreamEvent};
+use super::sse_utils::{extract_sse_data, pop_sse_frame_bytes};
 
 const OPENROUTER_API_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -111,7 +111,7 @@ impl ProviderAdapter for OpenRouterAdapter {
         let model_name = model.to_string();
 
         let stream = try_stream! {
-            let mut buffer = String::new();
+            let mut buffer = Vec::<u8>::new();
             let mut final_model = model_name.clone();
             let mut finish_reason = None;
             let mut is_done = false;
@@ -121,9 +121,12 @@ impl ProviderAdapter for OpenRouterAdapter {
                     break;
                 };
                 let chunk = chunk?;
-                buffer.push_str(&String::from_utf8_lossy(&chunk));
+                buffer.extend_from_slice(&chunk);
 
-                while let Some(frame) = pop_sse_frame(&mut buffer) {
+                while let Some(frame_bytes) = pop_sse_frame_bytes(&mut buffer) {
+                    let frame = String::from_utf8(frame_bytes).map_err(|e| {
+                        ProviderError::Other(Box::new(e))
+                    })?;
                     let Some(data) = extract_sse_data(&frame) else {
                         continue;
                     };
@@ -161,6 +164,12 @@ impl ProviderAdapter for OpenRouterAdapter {
                         }
                     }
                 }
+            }
+
+            if !is_done {
+                Err(ProviderError::Other(
+                    "stream ended before [DONE] terminator".into(),
+                ))?;
             }
 
             yield ProviderStreamEvent::Completed {

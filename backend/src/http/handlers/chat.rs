@@ -111,10 +111,22 @@ pub async fn complete_prompt(
     }
 
     let provider_name = payload.provider;
+    let adapter = match state.providers.resolve(provider_name.as_deref()) {
+        Some(adapter) => adapter,
+        None => {
+            return ApiError {
+                status: StatusCode::BAD_REQUEST,
+                message: "unknown provider".to_string(),
+            }
+            .into_response();
+        }
+    };
+    let provider_display_name = adapter.name().to_string();
+    let provider_endpoint = Some(adapter.endpoint().to_string());
+
     let stream = match chat_service::stream_prompt(
         &state.http_client,
-        &state.providers,
-        provider_name.as_deref(),
+        adapter,
         payload.prompt.clone(),
         prompt_messages,
         payload.model.clone(),
@@ -129,7 +141,6 @@ pub async fn complete_prompt(
     let db_pool = state.db_pool.clone();
     let user_id = session.user_id;
     let requested_model = payload.model.clone();
-    let providers = state.providers.clone();
 
     let sse_stream = stream! {
         let mut text = String::new();
@@ -141,12 +152,6 @@ pub async fn complete_prompt(
         let mut last_flush = tokio::time::Instant::now();
         let flush_every = Duration::from_millis(500);
         let flush_delta_count = 48usize;
-
-        let adapter = providers.resolve(provider_name.as_deref());
-        let (provider_display_name, provider_endpoint) = match &adapter {
-            Some(a) => (a.name().to_string(), Some(a.endpoint().to_string())),
-            None => ("unknown".to_string(), None),
-        };
 
         let started = match build_initial_message(
             &db_pool,
@@ -348,10 +353,6 @@ impl From<ChatServiceError> for ApiError {
             },
             ChatServiceError::MissingApiKey => Self {
                 status: StatusCode::UNAUTHORIZED,
-                message: value.to_string(),
-            },
-            ChatServiceError::UnknownProvider => Self {
-                status: StatusCode::BAD_REQUEST,
                 message: value.to_string(),
             },
             ChatServiceError::Provider(error) => Self {

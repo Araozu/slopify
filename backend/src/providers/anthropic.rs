@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::chat::contracts::{ChatRole, PromptMessage};
 
-use super::r#trait::{ProviderAdapter, ProviderError, ProviderStreamEvent};
-use super::sse_utils::{extract_sse_data, pop_sse_frame};
+use super::adapter::{ProviderAdapter, ProviderError, ProviderStreamEvent};
+use super::sse_utils::{extract_sse_data, pop_sse_frame_bytes};
 
 const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_API_VERSION: &str = "2023-06-01";
@@ -91,10 +91,24 @@ impl ProviderAdapter for AnthropicAdapter {
         model: &str,
         api_key: &str,
     ) -> Result<BoxStream<'static, Result<ProviderStreamEvent, ProviderError>>, ProviderError> {
-        let system_prompt = messages
+        // Anthropic does not support Tool messages; fail fast.
+        if messages.iter().any(|m| matches!(m.role, ChatRole::Tool)) {
+            return Err(ProviderError::Other(
+                "Anthropic adapter does not support Tool messages".into(),
+            ));
+        }
+
+        // Concatenate all system messages in order into a single system prompt.
+        let system_parts: Vec<&str> = messages
             .iter()
-            .find(|m| matches!(m.role, ChatRole::System))
-            .map(|m| m.content.as_str());
+            .filter(|m| matches!(m.role, ChatRole::System))
+            .map(|m| m.content.as_str())
+            .collect();
+        let system_prompt = if system_parts.is_empty() {
+            None
+        } else {
+            Some(system_parts.join("\n\n"))
+        };
 
         let api_messages: Vec<AnthropicRequestMessage<'_>> = messages
             .iter()
@@ -109,7 +123,7 @@ impl ProviderAdapter for AnthropicAdapter {
             model,
             max_tokens: 8192,
             stream: true,
-            system: system_prompt,
+            system: system_prompt.as_deref(),
             messages: api_messages,
         };
 
@@ -130,19 +144,23 @@ impl ProviderAdapter for AnthropicAdapter {
         let model_name = model.to_string();
 
         let stream = try_stream! {
-            let mut buffer = String::new();
+            let mut buffer = Vec::<u8>::new();
             let mut final_model = model_name.clone();
             let mut finish_reason: Option<String> = None;
             let mut current_block_type: Option<String> = None;
+            let mut saw_message_stop = false;
 
-            loop {
+            'stream: loop {
                 let Some(chunk) = byte_stream.next().await else {
                     break;
                 };
                 let chunk = chunk.map_err(ProviderError::Http)?;
-                buffer.push_str(&String::from_utf8_lossy(&chunk));
+                buffer.extend_from_slice(&chunk);
 
-                while let Some(frame) = pop_sse_frame(&mut buffer) {
+                while let Some(frame_bytes) = pop_sse_frame_bytes(&mut buffer) {
+                    let frame = String::from_utf8(frame_bytes).map_err(|e| {
+                        ProviderError::Other(Box::new(e))
+                    })?;
                     let Some(data) = extract_sse_data(&frame) else {
                         continue;
                     };
@@ -191,11 +209,18 @@ impl ProviderAdapter for AnthropicAdapter {
                             }
                         }
                         "message_stop" => {
-                            break;
+                            saw_message_stop = true;
+                            break 'stream;
                         }
                         _ => {}
                     }
                 }
+            }
+
+            if !saw_message_stop {
+                Err(ProviderError::Other(
+                    "stream ended before message_stop".into(),
+                ))?;
             }
 
             yield ProviderStreamEvent::Completed {
@@ -214,9 +239,9 @@ impl ProviderAdapter for AnthropicAdapter {
 
 fn chat_role_as_anthropic_role(role: &ChatRole) -> &'static str {
     match role {
-        ChatRole::System => "user",
         ChatRole::User => "user",
         ChatRole::Assistant => "assistant",
-        ChatRole::Tool => "user",
+        // System and Tool are handled before this point.
+        ChatRole::System | ChatRole::Tool => unreachable!(),
     }
 }
