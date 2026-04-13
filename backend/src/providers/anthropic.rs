@@ -241,7 +241,9 @@ fn chat_role_as_anthropic_role(role: &ChatRole) -> &'static str {
     match role {
         ChatRole::User => "user",
         ChatRole::Assistant => "assistant",
-        // System and Tool are handled before this point.
-        ChatRole::System | ChatRole::Tool => unreachable!(),
+        // System messages are filtered out before reaching here.
+        // Tool messages are rejected before reaching here.
+        // Defensive fallback to "user" in case of future refactoring.
+        ChatRole::System | ChatRole::Tool => "user",
     }
 }
