@@ -13,67 +13,12 @@ use crate::{
     state::AppState,
 };
 
-#[derive(Deserialize)]
-pub struct CreateCopilotTokenRequest {
-    pub name: String,
-    pub github_token: String,
-}
-
-#[derive(Deserialize)]
-pub struct UpdateCopilotTokenRequest {
-    pub name: Option<String>,
-    pub github_token: Option<String>,
-}
-
 pub async fn list_copilot_tokens(
     State(state): State<AppState>,
     session: AuthSession,
 ) -> Response {
     match copilot_token_service::list_tokens(&state.db_pool, session.user_id).await {
         Ok(tokens) => (StatusCode::OK, Json(tokens)).into_response(),
-        Err(error) => ApiError::from(error).into_response(),
-    }
-}
-
-pub async fn create_copilot_token(
-    State(state): State<AppState>,
-    session: AuthSession,
-    Json(payload): Json<CreateCopilotTokenRequest>,
-) -> Response {
-    match copilot_token_service::create_token(
-        &state.db_pool,
-        session.user_id,
-        payload.name,
-        payload.github_token,
-    )
-    .await
-    {
-        Ok(token) => (StatusCode::CREATED, Json(token)).into_response(),
-        Err(error) => ApiError::from(error).into_response(),
-    }
-}
-
-pub async fn update_copilot_token(
-    State(state): State<AppState>,
-    session: AuthSession,
-    Path(token_id): Path<String>,
-    Json(payload): Json<UpdateCopilotTokenRequest>,
-) -> Response {
-    let token_id = match parse_token_id(token_id) {
-        Ok(id) => id,
-        Err(error) => return error.into_response(),
-    };
-
-    match copilot_token_service::update_token(
-        &state.db_pool,
-        session.user_id,
-        token_id,
-        payload.name,
-        payload.github_token,
-    )
-    .await
-    {
-        Ok(token) => (StatusCode::OK, Json(token)).into_response(),
         Err(error) => ApiError::from(error).into_response(),
     }
 }
@@ -94,6 +39,46 @@ pub async fn delete_copilot_token(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Device code flow handlers
+// ---------------------------------------------------------------------------
+
+pub async fn initiate_device_code(State(state): State<AppState>, _session: AuthSession) -> Response {
+    match copilot_token_service::initiate_device_code(&state.http_client).await {
+        Ok(response) => (StatusCode::OK, Json(response)).into_response(),
+        Err(error) => ApiError::from(error).into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct PollDeviceCodeRequest {
+    pub device_code: String,
+    pub name: String,
+}
+
+pub async fn poll_device_code(
+    State(state): State<AppState>,
+    session: AuthSession,
+    Json(payload): Json<PollDeviceCodeRequest>,
+) -> Response {
+    match copilot_token_service::poll_device_code(
+        &state.http_client,
+        &state.db_pool,
+        session.user_id,
+        &payload.device_code,
+        &payload.name,
+    )
+    .await
+    {
+        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
+        Err(error) => ApiError::from(error).into_response(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Error mapping
+// ---------------------------------------------------------------------------
+
 struct ApiError {
     status: StatusCode,
     message: String,
@@ -102,7 +87,7 @@ struct ApiError {
 impl From<CopilotTokenServiceError> for ApiError {
     fn from(value: CopilotTokenServiceError) -> Self {
         match value {
-            CopilotTokenServiceError::InvalidName | CopilotTokenServiceError::InvalidToken => {
+            CopilotTokenServiceError::InvalidName => {
                 Self {
                     status: StatusCode::BAD_REQUEST,
                     message: value.to_string(),
@@ -118,6 +103,10 @@ impl From<CopilotTokenServiceError> for ApiError {
             },
             CopilotTokenServiceError::Storage(_) => Self {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
+                message: value.to_string(),
+            },
+            CopilotTokenServiceError::DeviceFlowFailed(_) => Self {
+                status: StatusCode::BAD_GATEWAY,
                 message: value.to_string(),
             },
         }

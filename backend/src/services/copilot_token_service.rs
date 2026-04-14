@@ -1,3 +1,5 @@
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, error::ErrorKind};
 use uuid::Uuid;
 
@@ -7,15 +9,20 @@ use crate::{
 };
 
 const MAX_NAME_LENGTH: usize = 80;
-const MAX_TOKEN_LENGTH: usize = 512;
+
+const GITHUB_DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
+const GITHUB_OAUTH_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
+
+/// VS Code Copilot Chat's well-known public OAuth client ID.
+const COPILOT_CLIENT_ID: &str = "Iv1.b507a08c87ecfe98";
 
 #[derive(Debug)]
 pub enum CopilotTokenServiceError {
     InvalidName,
-    InvalidToken,
     TokenNotFound,
     DuplicateName,
     Storage(sqlx::Error),
+    DeviceFlowFailed(String),
 }
 
 impl std::fmt::Display for CopilotTokenServiceError {
@@ -24,12 +31,10 @@ impl std::fmt::Display for CopilotTokenServiceError {
             Self::InvalidName => {
                 write!(f, "Enter a name between 1 and {MAX_NAME_LENGTH} characters.")
             }
-            Self::InvalidToken => {
-                write!(f, "Enter a GitHub token between 1 and {MAX_TOKEN_LENGTH} characters.")
-            }
             Self::TokenNotFound => write!(f, "Copilot token not found."),
             Self::DuplicateName => write!(f, "You already have a token with that name."),
             Self::Storage(error) => write!(f, "failed to access Copilot token data: {error}"),
+            Self::DeviceFlowFailed(msg) => write!(f, "device flow failed: {msg}"),
         }
     }
 }
@@ -48,59 +53,16 @@ impl From<sqlx::Error> for CopilotTokenServiceError {
     }
 }
 
+// ---------------------------------------------------------------------------
+// CRUD (unchanged)
+// ---------------------------------------------------------------------------
+
 pub async fn list_tokens(
     pool: &PgPool,
     user_id: Uuid,
 ) -> Result<Vec<CopilotToken>, CopilotTokenServiceError> {
     let tokens = copilot_token_storage::list_tokens(pool, user_id).await?;
     Ok(tokens.into_iter().map(map_token).collect())
-}
-
-pub async fn create_token(
-    pool: &PgPool,
-    user_id: Uuid,
-    name: String,
-    github_token: String,
-) -> Result<CopilotToken, CopilotTokenServiceError> {
-    let normalized_name = normalize_name(name)?;
-    let normalized_token = normalize_token(github_token)?;
-    let record = copilot_token_storage::create_token(
-        pool,
-        Uuid::new_v4(),
-        user_id,
-        &normalized_name,
-        &normalized_token,
-    )
-    .await?;
-
-    Ok(map_token(record))
-}
-
-pub async fn update_token(
-    pool: &PgPool,
-    user_id: Uuid,
-    token_id: Uuid,
-    name: Option<String>,
-    github_token: Option<String>,
-) -> Result<CopilotToken, CopilotTokenServiceError> {
-    let normalized_name = name.map(normalize_name).transpose()?;
-    let normalized_token = github_token.map(normalize_token).transpose()?;
-
-    let current = copilot_token_storage::find_token_by_id(pool, token_id, user_id)
-        .await?
-        .ok_or(CopilotTokenServiceError::TokenNotFound)?;
-
-    let updated = copilot_token_storage::update_token(
-        pool,
-        token_id,
-        user_id,
-        normalized_name.as_deref().unwrap_or(&current.name),
-        normalized_token.as_deref().unwrap_or(&current.github_token),
-    )
-    .await?
-    .ok_or(CopilotTokenServiceError::TokenNotFound)?;
-
-    Ok(map_token(updated))
 }
 
 pub async fn delete_token(
@@ -117,21 +79,131 @@ pub async fn delete_token(
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// OAuth device code flow
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceCodeResponse {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub expires_in: u64,
+    pub interval: u64,
+}
+
+/// Initiate the GitHub OAuth device code flow with `scope=copilot`.
+pub async fn initiate_device_code(
+    http_client: &Client,
+) -> Result<DeviceCodeResponse, CopilotTokenServiceError> {
+    let response = http_client
+        .post(GITHUB_DEVICE_CODE_URL)
+        .header("Accept", "application/json")
+        .json(&serde_json::json!({
+            "client_id": COPILOT_CLIENT_ID,
+            "scope": "copilot",
+        }))
+        .send()
+        .await
+        .map_err(|e| CopilotTokenServiceError::DeviceFlowFailed(e.to_string()))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(CopilotTokenServiceError::DeviceFlowFailed(format!(
+            "GitHub returned {status}: {body}"
+        )));
+    }
+
+    response
+        .json::<DeviceCodeResponse>()
+        .await
+        .map_err(|e| CopilotTokenServiceError::DeviceFlowFailed(e.to_string()))
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum DevicePollResult {
+    /// User hasn't authorized yet.
+    Pending,
+    /// GitHub asked us to slow down.
+    SlowDown,
+    /// Authorization complete — token was persisted.
+    Complete { token: CopilotToken },
+    /// The device code expired.
+    Expired,
+}
+
+#[derive(Deserialize)]
+struct OAuthTokenResponse {
+    access_token: Option<String>,
+    error: Option<String>,
+}
+
+/// Make a single poll attempt against GitHub's OAuth token endpoint. If the
+/// user has authorized, persist the OAuth token and return `Complete`.
+pub async fn poll_device_code(
+    http_client: &Client,
+    pool: &PgPool,
+    user_id: Uuid,
+    device_code: &str,
+    name: &str,
+) -> Result<DevicePollResult, CopilotTokenServiceError> {
+    let response = http_client
+        .post(GITHUB_OAUTH_TOKEN_URL)
+        .header("Accept", "application/json")
+        .json(&serde_json::json!({
+            "client_id": COPILOT_CLIENT_ID,
+            "device_code": device_code,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+        }))
+        .send()
+        .await
+        .map_err(|e| CopilotTokenServiceError::DeviceFlowFailed(e.to_string()))?;
+
+    let data: OAuthTokenResponse = response
+        .json()
+        .await
+        .map_err(|e| CopilotTokenServiceError::DeviceFlowFailed(e.to_string()))?;
+
+    if let Some(access_token) = data.access_token {
+        let normalized_name = normalize_name(name.to_string())?;
+        let record = copilot_token_storage::create_token(
+            pool,
+            Uuid::new_v4(),
+            user_id,
+            &normalized_name,
+            &access_token,
+        )
+        .await?;
+
+        return Ok(DevicePollResult::Complete {
+            token: map_token(record),
+        });
+    }
+
+    match data.error.as_deref() {
+        Some("authorization_pending") => Ok(DevicePollResult::Pending),
+        Some("slow_down") => Ok(DevicePollResult::SlowDown),
+        Some("expired_token") => Ok(DevicePollResult::Expired),
+        Some(other) => Err(CopilotTokenServiceError::DeviceFlowFailed(
+            other.to_string(),
+        )),
+        None => Err(CopilotTokenServiceError::DeviceFlowFailed(
+            "unexpected response from GitHub".to_string(),
+        )),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 fn normalize_name(name: String) -> Result<String, CopilotTokenServiceError> {
     let normalized = name.trim().to_string();
 
     if normalized.is_empty() || normalized.len() > MAX_NAME_LENGTH {
         return Err(CopilotTokenServiceError::InvalidName);
-    }
-
-    Ok(normalized)
-}
-
-fn normalize_token(token: String) -> Result<String, CopilotTokenServiceError> {
-    let normalized = token.trim().to_string();
-
-    if normalized.is_empty() || normalized.len() > MAX_TOKEN_LENGTH {
-        return Err(CopilotTokenServiceError::InvalidToken);
     }
 
     Ok(normalized)

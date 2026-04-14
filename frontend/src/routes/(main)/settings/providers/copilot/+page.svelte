@@ -1,12 +1,21 @@
 <script lang="ts">
 	import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
-	import { GithubLogoIcon, PencilSimpleIcon, TrashIcon, CubeIcon } from 'phosphor-svelte';
+	import {
+		GithubLogoIcon,
+		TrashIcon,
+		CubeIcon,
+		ClipboardTextIcon,
+		ArrowSquareOutIcon,
+		SpinnerGapIcon,
+		CheckCircleIcon
+	} from 'phosphor-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import {
-		createCopilotToken,
 		deleteCopilotToken,
-		updateCopilotToken
+		initiateDeviceCode,
+		pollDeviceCode,
+		type DeviceCodeResponse
 	} from '$lib/copilot-token-client';
 	import {
 		invalidateCopilotTokens,
@@ -19,53 +28,31 @@
 	} from '$lib/queries/copilot-model-query';
 	import type { CopilotToken, CopilotModel } from '$lib/types';
 
-	interface TokenDraft {
-		name: string;
-		githubToken: string;
-	}
-
 	const queryClient = useQueryClient();
 	const copilotTokensQuery = createQuery(() => copilotTokensQueryOptions());
 	const copilotModelsQuery = createQuery(() => copilotModelsQueryOptions());
 
-	let newTokenName = $state('');
-	let newGithubToken = $state('');
-	let formError = $state('');
-	let draftsById = $state<Record<string, TokenDraft>>({});
+	// Device code flow state
+	let deviceFlow = $state<{
+		phase: 'idle' | 'loading' | 'awaiting' | 'complete' | 'error';
+		data?: DeviceCodeResponse;
+		error?: string;
+		name: string;
+		copied: boolean;
+	}>({ phase: 'idle', name: '', copied: false });
 
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+	const tokens = $derived((copilotTokensQuery.data ?? []) as CopilotToken[]);
+	const models = $derived((copilotModelsQuery.data ?? []) as CopilotModel[]);
+
+	// Model form state
 	let newModelId = $state('');
 	let modelFormError = $state('');
 
-	const createTokenMutation = createMutation(() => ({
-		mutationFn: ({ name, githubToken }: TokenDraft) => createCopilotToken({ name, githubToken }),
-		onSuccess: async () => {
-			newTokenName = '';
-			newGithubToken = '';
-			formError = '';
-			await invalidateCopilotTokens(queryClient);
-		}
-	}));
-
-	const updateTokenMutation = createMutation(() => ({
-		mutationFn: ({
-			tokenId,
-			name,
-			githubToken
-		}: {
-			tokenId: string;
-			name: string;
-			githubToken: string;
-		}) => updateCopilotToken(tokenId, { name, githubToken }),
-		onSuccess: async (_updatedToken, variables) => {
-			clearDraft(variables.tokenId);
-			await invalidateCopilotTokens(queryClient);
-		}
-	}));
-
 	const deleteTokenMutation = createMutation(() => ({
 		mutationFn: (tokenId: string) => deleteCopilotToken(tokenId),
-		onSuccess: async (_result, tokenId) => {
-			clearDraft(tokenId);
+		onSuccess: async () => {
 			await invalidateCopilotTokens(queryClient);
 		}
 	}));
@@ -86,27 +73,12 @@
 		}
 	}));
 
-	const tokens = $derived((copilotTokensQuery.data ?? []) as CopilotToken[]);
-	const models = $derived((copilotModelsQuery.data ?? []) as CopilotModel[]);
-
 	const queryError = $derived(
 		copilotTokensQuery.error instanceof Error ? copilotTokensQuery.error.message : ''
 	);
-	const mutationError = $derived.by(() => {
-		if (createTokenMutation.error instanceof Error) {
-			return createTokenMutation.error.message;
-		}
-
-		if (updateTokenMutation.error instanceof Error) {
-			return updateTokenMutation.error.message;
-		}
-
-		if (deleteTokenMutation.error instanceof Error) {
-			return deleteTokenMutation.error.message;
-		}
-
-		return '';
-	});
+	const deleteError = $derived(
+		deleteTokenMutation.error instanceof Error ? deleteTokenMutation.error.message : ''
+	);
 
 	const modelQueryError = $derived(
 		copilotModelsQuery.error instanceof Error ? copilotModelsQuery.error.message : ''
@@ -121,53 +93,78 @@
 		return '';
 	});
 
-	function getDraft(token: CopilotToken): TokenDraft {
-		return draftsById[token.id] ?? { name: token.name, githubToken: token.githubToken };
+	function stopPolling() {
+		if (pollTimer) {
+			clearInterval(pollTimer);
+			pollTimer = null;
+		}
 	}
 
-	function updateDraft(tokenId: string, field: keyof TokenDraft, value: string) {
-		draftsById = {
-			...draftsById,
-			[tokenId]: {
-				...draftsById[tokenId],
-				[field]: value
-			}
-		};
-	}
-
-	function clearDraft(tokenId: string) {
-		const nextDrafts = { ...draftsById };
-		delete nextDrafts[tokenId];
-		draftsById = nextDrafts;
-	}
-
-	function hasDraftChanges(token: CopilotToken) {
-		const draft = getDraft(token);
-		return draft.name !== token.name || draft.githubToken !== token.githubToken;
-	}
-
-	function submitCreate(event: SubmitEvent) {
-		event.preventDefault();
-		formError = '';
-
-		const name = newTokenName.trim();
-		const githubToken = newGithubToken.trim();
-
-		if (!name || !githubToken) {
-			formError = 'Give the token a name and paste your GitHub PAT.';
+	async function startDeviceFlow() {
+		const name = deviceFlow.name.trim();
+		if (!name) {
+			deviceFlow = { ...deviceFlow, phase: 'error', error: 'Give this connection a name first.' };
 			return;
 		}
 
-		createTokenMutation.mutate({ name, githubToken });
+		deviceFlow = { ...deviceFlow, phase: 'loading', error: undefined, copied: false };
+
+		try {
+			const data = await initiateDeviceCode();
+			deviceFlow = { ...deviceFlow, phase: 'awaiting', data };
+
+			const interval = (data.interval || 5) * 1000;
+
+			pollTimer = setInterval(async () => {
+				try {
+					const result = await pollDeviceCode(data.deviceCode, name);
+
+					if (result.status === 'complete') {
+						stopPolling();
+						deviceFlow = { phase: 'complete', name: '', copied: false };
+						await invalidateCopilotTokens(queryClient);
+					} else if (result.status === 'expired') {
+						stopPolling();
+						deviceFlow = {
+							phase: 'error',
+							name,
+							copied: false,
+							error: 'The device code expired. Please try again.'
+						};
+					}
+					// pending / slow_down: keep polling
+				} catch (err) {
+					stopPolling();
+					deviceFlow = {
+						phase: 'error',
+						name,
+						copied: false,
+						error: err instanceof Error ? err.message : 'Polling failed.'
+					};
+				}
+			}, interval);
+		} catch (err) {
+			deviceFlow = {
+				...deviceFlow,
+				phase: 'error',
+				error: err instanceof Error ? err.message : 'Failed to start device flow.'
+			};
+		}
 	}
 
-	function submitUpdate(token: CopilotToken) {
-		const draft = getDraft(token);
-		updateTokenMutation.mutate({
-			tokenId: token.id,
-			name: draft.name.trim(),
-			githubToken: draft.githubToken.trim()
-		});
+	function cancelDeviceFlow() {
+		stopPolling();
+		deviceFlow = { phase: 'idle', name: deviceFlow.name, copied: false };
+	}
+
+	async function copyCode() {
+		if (deviceFlow.data?.userCode) {
+			await navigator.clipboard.writeText(deviceFlow.data.userCode);
+			deviceFlow = { ...deviceFlow, copied: true };
+			setTimeout(() => {
+				deviceFlow = { ...deviceFlow, copied: false };
+			}, 2000);
+		}
 	}
 
 	function handleDelete(tokenId: string) {
@@ -211,31 +208,30 @@
 					<p class="text-[10px] font-black tracking-widest text-muted-foreground/50 uppercase">
 						Provider configuration
 					</p>
-					<h2 class="text-base font-bold tracking-tight">Copilot Tokens</h2>
+					<h2 class="text-base font-bold tracking-tight">Copilot Connections</h2>
 					<p class="max-w-2xl text-xs text-muted-foreground/60">
-						Save GitHub personal access tokens (classic) with <span class="font-mono">copilot</span>
-						scope. The backend exchanges them for short-lived Copilot API tokens automatically.
+						Sign in with your GitHub account to authorize Copilot access. The OAuth token is stored
+						securely and exchanged for short-lived API tokens automatically.
 					</p>
 				</div>
 
 				<div class="grid gap-4 sm:grid-cols-2">
 					<div class="rounded-xl border bg-muted/30 p-4 shadow-inner ring-1 ring-border/50">
 						<p class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
-							GitHub PAT
+							Device code flow
 						</p>
 						<p class="mt-2 text-xs leading-relaxed text-foreground/60">
-							Create a classic PAT at github.com/settings/tokens with the <span class="font-mono"
-								>copilot</span
-							> scope enabled.
+							Click "Sign in with GitHub" below, then enter the code at github.com/login/device in
+							your browser. No API keys needed.
 						</p>
 					</div>
 					<div class="rounded-xl border bg-muted/30 p-4 shadow-inner ring-1 ring-border/50">
 						<p class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
-							Token exchange
+							Token management
 						</p>
 						<p class="mt-2 text-xs leading-relaxed text-foreground/60">
-							Your PAT is exchanged for a short-lived Copilot token on each request. The PAT itself
-							is never sent to the model endpoint.
+							Your OAuth token is exchanged for short-lived Copilot API tokens behind the scenes.
+							Tokens refresh automatically before they expire.
 						</p>
 					</div>
 				</div>
@@ -244,63 +240,125 @@
 			<div class="grid gap-8 lg:grid-cols-[1fr_1.5fr]">
 				<section class="space-y-4">
 					<h3 class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
-						Add a token
+						Connect account
 					</h3>
 
 					<div class="rounded-xl border bg-card/50 p-5 shadow-sm backdrop-blur-sm">
-						<form class="space-y-4" onsubmit={submitCreate}>
-							<div class="space-y-1.5">
-								<label
-									class="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase"
-									for="token-name">Label</label
+						{#if deviceFlow.phase === 'idle' || deviceFlow.phase === 'error'}
+							<div class="space-y-4">
+								<div class="space-y-1.5">
+									<label
+										class="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase"
+										for="connection-name">Connection name</label
+									>
+									<Input
+										id="connection-name"
+										bind:value={deviceFlow.name}
+										placeholder="Work account"
+										class="h-8 rounded-md bg-background/50"
+									/>
+								</div>
+
+								{#if deviceFlow.phase === 'error' && deviceFlow.error}
+									<p
+										class="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-2 text-[11px] font-medium text-destructive"
+									>
+										{deviceFlow.error}
+									</p>
+								{/if}
+
+								<Button
+									class="h-8 w-full rounded-md shadow-sm shadow-primary/10 transition-transform active:scale-[0.98]"
+									onclick={startDeviceFlow}
 								>
-								<Input
-									id="token-name"
-									bind:value={newTokenName}
-									placeholder="Work account"
-									class="h-8 rounded-md bg-background/50"
-									disabled={createTokenMutation.isPending}
-								/>
+									<GithubLogoIcon size={14} weight="fill" class="mr-2" />
+									Sign in with GitHub
+								</Button>
 							</div>
-
-							<div class="space-y-1.5">
-								<label
-									class="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase"
-									for="github-token">GitHub PAT</label
-								>
-								<Input
-									id="github-token"
-									bind:value={newGithubToken}
-									type="password"
-									placeholder="ghp_..."
-									class="h-8 rounded-md bg-background/50"
-									disabled={createTokenMutation.isPending}
-								/>
+						{:else if deviceFlow.phase === 'loading'}
+							<div class="flex items-center justify-center gap-2 py-6">
+								<SpinnerGapIcon size={16} weight="bold" class="animate-spin text-primary" />
+								<span class="text-xs text-muted-foreground">Starting authorization...</span>
 							</div>
+						{:else if deviceFlow.phase === 'awaiting' && deviceFlow.data}
+							<div class="space-y-4">
+								<div class="space-y-2 text-center">
+									<p class="text-xs text-muted-foreground/60">Enter this code at GitHub:</p>
+									<div class="flex items-center justify-center gap-2">
+										<code
+											class="rounded-lg border bg-muted/50 px-4 py-2 font-mono text-lg font-black tracking-[0.3em]"
+										>
+											{deviceFlow.data.userCode}
+										</code>
+										<Button
+											variant="outline"
+											size="sm"
+											class="h-8 w-8 shrink-0 rounded-md p-0"
+											onclick={copyCode}
+											title="Copy code"
+										>
+											{#if deviceFlow.copied}
+												<CheckCircleIcon size={14} weight="fill" class="text-green-500" />
+											{:else}
+												<ClipboardTextIcon size={14} weight="bold" />
+											{/if}
+										</Button>
+									</div>
+								</div>
 
-							{#if formError}
-								<p
-									class="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-2 text-[11px] font-medium text-destructive"
+								<!-- eslint-disable svelte/no-navigation-without-resolve -->
+								<a
+									href={deviceFlow.data.verificationUri}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="flex h-8 w-full items-center justify-center gap-2 rounded-md border bg-background/50 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
 								>
-									{formError}
-								</p>
-							{/if}
+									<ArrowSquareOutIcon size={13} weight="bold" />
+									Open github.com/login/device
+								</a>
+								<!-- eslint-enable svelte/no-navigation-without-resolve -->
 
-							<Button
-								type="submit"
-								class="h-8 w-full rounded-md shadow-sm shadow-primary/10 transition-transform active:scale-[0.98]"
-								disabled={createTokenMutation.isPending}
-							>
-								{createTokenMutation.isPending ? 'Saving...' : 'Save token'}
-							</Button>
-						</form>
+								<div
+									class="flex items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/20 px-4 py-3"
+								>
+									<SpinnerGapIcon size={13} weight="bold" class="animate-spin text-primary/60" />
+									<span class="text-[11px] text-muted-foreground/60"
+										>Waiting for authorization...</span
+									>
+								</div>
+
+								<Button
+									variant="outline"
+									size="sm"
+									class="h-7 w-full text-[11px]"
+									onclick={cancelDeviceFlow}
+								>
+									Cancel
+								</Button>
+							</div>
+						{:else if deviceFlow.phase === 'complete'}
+							<div class="flex flex-col items-center gap-3 py-4">
+								<CheckCircleIcon size={24} weight="fill" class="text-green-500" />
+								<p class="text-sm font-medium">Connected successfully</p>
+								<Button
+									variant="outline"
+									size="sm"
+									class="h-7 text-[11px]"
+									onclick={() => {
+										deviceFlow = { phase: 'idle', name: '', copied: false };
+									}}
+								>
+									Connect another account
+								</Button>
+							</div>
+						{/if}
 					</div>
 				</section>
 
 				<section class="space-y-4">
 					<div class="flex items-center justify-between">
 						<h3 class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
-							Saved tokens
+							Saved connections
 						</h3>
 						<span
 							class="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase ring-1 ring-border/50"
@@ -309,11 +367,11 @@
 						</span>
 					</div>
 
-					{#if queryError || mutationError}
+					{#if queryError || deleteError}
 						<p
 							class="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-xs font-medium text-destructive"
 						>
-							{queryError || mutationError}
+							{queryError || deleteError}
 						</p>
 					{/if}
 
@@ -322,7 +380,7 @@
 							<div
 								class="rounded-xl border border-dashed bg-muted/20 px-5 py-12 text-center text-xs font-medium tracking-widest text-muted-foreground/40 uppercase"
 							>
-								Loading tokens...
+								Loading connections...
 							</div>
 						{:else if tokens.length === 0}
 							<div
@@ -333,80 +391,32 @@
 								>
 									<GithubLogoIcon size={20} weight="fill" />
 								</div>
-								<h4 class="mt-4 text-sm font-bold tracking-tight">No tokens saved yet</h4>
+								<h4 class="mt-4 text-sm font-bold tracking-tight">No connections yet</h4>
 								<p class="mt-1 text-xs text-muted-foreground/50">
-									Add your first GitHub PAT to get started with Copilot.
+									Sign in with GitHub to connect your Copilot access.
 								</p>
 							</div>
 						{:else}
 							{#each tokens as token (token.id)}
-								{@const draft = getDraft(token)}
-								<div class="rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm">
-									<div class="flex flex-wrap items-start justify-between gap-3">
-										<div class="space-y-0.5">
-											<p
-												class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase"
-											>
-												Record ID
-											</p>
-											<p class="font-mono text-[10px] text-muted-foreground/60">{token.id}</p>
-										</div>
-										<div class="flex items-center gap-2">
-											<Button
-												variant="outline"
-												size="sm"
-												class="h-7 rounded-md px-3 text-[11px] font-bold tracking-wider uppercase"
-												disabled={!hasDraftChanges(token) || updateTokenMutation.isPending}
-												onclick={() => submitUpdate(token)}
-											>
-												<PencilSimpleIcon size={13} weight="bold" class="mr-1.5" />
-												<span>{updateTokenMutation.isPending ? 'Saving' : 'Save'}</span>
-											</Button>
-											<Button
-												variant="outline"
-												size="sm"
-												class="h-7 rounded-md px-3 text-[11px] font-bold tracking-wider text-destructive uppercase hover:bg-destructive/10 hover:text-destructive"
-												disabled={deleteTokenMutation.isPending}
-												onclick={() => handleDelete(token.id)}
-											>
-												<TrashIcon size={13} weight="bold" class="mr-1.5" />
-												<span>{deleteTokenMutation.isPending ? 'Deleting' : 'Delete'}</span>
-											</Button>
-										</div>
+								<div
+									class="flex items-center justify-between rounded-xl border bg-card/50 p-4 shadow-sm backdrop-blur-sm"
+								>
+									<div class="min-w-0 space-y-1">
+										<p class="truncate text-sm font-medium">{token.name}</p>
+										<p class="font-mono text-[10px] text-muted-foreground/40">
+											{token.githubToken.slice(0, 8)}...
+										</p>
 									</div>
-
-									<div class="mt-4 grid gap-3 sm:grid-cols-2">
-										<div class="space-y-1.5">
-											<label
-												class="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase"
-												for={`name-${token.id}`}>Label</label
-											>
-											<Input
-												id={`name-${token.id}`}
-												value={draft.name}
-												placeholder="Token label"
-												class="h-8 rounded-md bg-background/50"
-												oninput={(event) =>
-													updateDraft(token.id, 'name', event.currentTarget.value)}
-											/>
-										</div>
-
-										<div class="space-y-1.5">
-											<label
-												class="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase"
-												for={`value-${token.id}`}>GitHub PAT</label
-											>
-											<Input
-												id={`value-${token.id}`}
-												value={draft.githubToken}
-												type="password"
-												placeholder="ghp_..."
-												class="h-8 rounded-md bg-background/50"
-												oninput={(event) =>
-													updateDraft(token.id, 'githubToken', event.currentTarget.value)}
-											/>
-										</div>
-									</div>
+									<Button
+										variant="outline"
+										size="sm"
+										class="ml-4 h-7 shrink-0 rounded-md px-3 text-[11px] font-bold tracking-wider text-destructive uppercase hover:bg-destructive/10 hover:text-destructive"
+										disabled={deleteTokenMutation.isPending}
+										onclick={() => handleDelete(token.id)}
+									>
+										<TrashIcon size={13} weight="bold" class="mr-1.5" />
+										<span>{deleteTokenMutation.isPending ? 'Removing' : 'Remove'}</span>
+									</Button>
 								</div>
 							{/each}
 						{/if}
@@ -422,8 +432,10 @@
 					</p>
 					<h2 class="text-base font-bold tracking-tight">Saved Models</h2>
 					<p class="max-w-2xl text-xs text-muted-foreground/60">
-						Save Copilot model IDs to quickly select them from the chat composer. Use the model IDs
-						supported by your Copilot subscription.
+						Save Copilot model IDs to quickly select them from the chat composer. Use simple names
+						like <span class="font-mono">gemini-3-flash-preview</span>,
+						<span class="font-mono">gpt-4.1</span>, or
+						<span class="font-mono">claude-sonnet-4</span>.
 					</p>
 				</div>
 			</section>
@@ -444,7 +456,7 @@
 								<Input
 									id="copilot-model-id"
 									bind:value={newModelId}
-									placeholder="gpt-4o"
+									placeholder="gemini-3-flash-preview"
 									class="h-8 rounded-md bg-background/50 font-mono"
 									disabled={createModelMutation.isPending}
 								/>
@@ -521,7 +533,9 @@
 										>
 											Model ID
 										</p>
-										<p class="truncate font-mono text-xs text-foreground/80">{m.modelId}</p>
+										<p class="truncate font-mono text-xs text-foreground/80">
+											{m.modelId}
+										</p>
 									</div>
 									<Button
 										variant="outline"

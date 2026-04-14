@@ -53,12 +53,19 @@ fn api_router() -> Router<AppState> {
         )
         .route(
             "/v1/copilot-tokens",
-            get(copilot_tokens::list_copilot_tokens).post(copilot_tokens::create_copilot_token),
+            get(copilot_tokens::list_copilot_tokens),
         )
         .route(
             "/v1/copilot-tokens/{token_id}",
-            axum::routing::patch(copilot_tokens::update_copilot_token)
-                .delete(copilot_tokens::delete_copilot_token),
+            axum::routing::delete(copilot_tokens::delete_copilot_token),
+        )
+        .route(
+            "/v1/copilot/device-code",
+            post(copilot_tokens::initiate_device_code),
+        )
+        .route(
+            "/v1/copilot/device-code/poll",
+            post(copilot_tokens::poll_device_code),
         )
         .route(
             "/v1/system-prompts",

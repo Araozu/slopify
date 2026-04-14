@@ -1,13 +1,12 @@
 use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
+use tracing::{debug, error, info};
 
 use crate::chat::contracts::{ChatRole, PromptMessage};
 
@@ -15,39 +14,125 @@ use super::adapter::{ProviderAdapter, ProviderError, ProviderStreamEvent};
 use super::openai_compat_stream::parse_openai_stream;
 
 const COMPLETIONS_URL: &str = "https://api.githubcopilot.com/chat/completions";
-const TOKEN_URL: &str = "https://api.github.com/copilot_internal/v2/token";
+const TOKEN_EXCHANGE_URL: &str = "https://api.github.com/copilot_internal/v2/token";
 
-/// How many seconds before actual expiry we treat a cached token as stale.
-const EXPIRY_SAFETY_MARGIN_SECS: u64 = 60;
+/// Safety margin: refresh the cached token 60 s before it actually expires.
+const EXPIRY_BUFFER_SECS: i64 = 60;
 
-#[derive(Clone)]
-struct CachedCopilotToken {
+struct CachedApiToken {
     token: String,
-    /// Unix timestamp (seconds) at which the token expires.
-    expires_at: u64,
+    expires_at: chrono::DateTime<chrono::Utc>,
 }
 
 pub struct GithubCopilotAdapter {
-    completions_endpoint: String,
-    token_endpoint: String,
-    /// Keyed by a hash of the user's GitHub token.
-    token_cache: Arc<RwLock<HashMap<u64, CachedCopilotToken>>>,
+    /// Cache of short-lived Copilot API tokens keyed by the OAuth token they
+    /// were exchanged from.
+    token_cache: Arc<RwLock<HashMap<String, CachedApiToken>>>,
 }
 
 impl GithubCopilotAdapter {
     pub fn new() -> Self {
         Self {
-            completions_endpoint: COMPLETIONS_URL.to_string(),
-            token_endpoint: TOKEN_URL.to_string(),
             token_cache: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    /// Return a valid Copilot API token, using the cache when possible.
+    async fn resolve_api_token(
+        &self,
+        client: &Client,
+        oauth_token: &str,
+    ) -> Result<String, ProviderError> {
+        let token_preview = &oauth_token[..oauth_token.len().min(8)];
+
+        // Check cache first (read lock).
+        {
+            let cache = self.token_cache.read().await;
+            if let Some(cached) = cache.get(oauth_token) {
+                let now = chrono::Utc::now();
+                if cached.expires_at - chrono::Duration::seconds(EXPIRY_BUFFER_SECS) > now {
+                    debug!(token_prefix = token_preview, "copilot: using cached API token");
+                    return Ok(cached.token.clone());
+                }
+                debug!(token_prefix = token_preview, "copilot: cached token expired, re-exchanging");
+            }
+        }
+
+        // Cache miss or expired — exchange the OAuth token.
+        info!(token_prefix = token_preview, "copilot: exchanging OAuth token for API token");
+        let api_token = exchange_oauth_token(client, oauth_token).await?;
+        let token_string = api_token.token.clone();
+        info!(
+            expires_at = %api_token.expires_at,
+            "copilot: token exchange successful"
+        );
+
+        let mut cache = self.token_cache.write().await;
+        cache.insert(
+            oauth_token.to_string(),
+            CachedApiToken {
+                token: api_token.token,
+                expires_at: api_token.expires_at,
+            },
+        );
+
+        Ok(token_string)
     }
 }
 
 #[derive(Deserialize)]
-struct CopilotTokenResponse {
+struct TokenExchangeResponse {
     token: String,
-    expires_at: serde_json::Value,
+    #[serde(deserialize_with = "chrono::serde::ts_seconds::deserialize")]
+    expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+async fn exchange_oauth_token(
+    client: &Client,
+    oauth_token: &str,
+) -> Result<TokenExchangeResponse, ProviderError> {
+    debug!("copilot: requesting token from {TOKEN_EXCHANGE_URL}");
+
+    let response = client
+        .get(TOKEN_EXCHANGE_URL)
+        .header("Authorization", format!("token {oauth_token}"))
+        .header("Accept", "application/json")
+        .header("User-Agent", "slopify/0.1")
+        .send()
+        .await
+        .map_err(|e| {
+            error!(error = %e, "copilot: token exchange request failed");
+            ProviderError::Http(e)
+        })?;
+
+    let status = response.status();
+    debug!(status = %status, "copilot: token exchange response status");
+
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        error!(status = %status, body = %body, "copilot: token exchange returned non-2xx");
+        return Err(ProviderError::Other(
+            format!("token exchange failed ({status}): {body}").into(),
+        ));
+    }
+
+    let body_text = response.text().await.map_err(|e| {
+        error!(error = %e, "copilot: failed to read token exchange body");
+        ProviderError::Http(e)
+    })?;
+
+    debug!(body_len = body_text.len(), "copilot: token exchange body received");
+
+    let parsed: TokenExchangeResponse = serde_json::from_str(&body_text).map_err(|e| {
+        error!(
+            error = %e,
+            body_preview = %&body_text[..body_text.len().min(500)],
+            "copilot: failed to parse token exchange response"
+        );
+        ProviderError::InvalidPayload(e)
+    })?;
+
+    Ok(parsed)
 }
 
 #[derive(Serialize)]
@@ -63,86 +148,6 @@ struct CopilotRequestMessage<'a> {
     content: &'a str,
 }
 
-fn hash_token(token: &str) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    token.hash(&mut hasher);
-    hasher.finish()
-}
-
-fn now_unix() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-}
-
-impl GithubCopilotAdapter {
-    async fn get_copilot_token(
-        &self,
-        client: &Client,
-        github_token: &str,
-    ) -> Result<String, ProviderError> {
-        let key = hash_token(github_token);
-        let now = now_unix();
-
-        {
-            let cache = self.token_cache.read().await;
-            if let Some(cached) = cache.get(&key) {
-                if now + EXPIRY_SAFETY_MARGIN_SECS < cached.expires_at {
-                    return Ok(cached.token.clone());
-                }
-            }
-        }
-
-        let response = client
-            .get(&self.token_endpoint)
-            .bearer_auth(github_token)
-            .header("Accept", "application/json")
-            .header("Editor-Version", "vscode/1.95.0")
-            .header("Editor-Plugin-Version", "copilot/1.236.0")
-            .send()
-            .await
-            .map_err(ProviderError::Http)?
-            .error_for_status()
-            .map_err(ProviderError::Http)?;
-
-        let body: CopilotTokenResponse = response
-            .json()
-            .await
-            .map_err(ProviderError::Http)?;
-
-        // expires_at may be a number or an RFC3339 string depending on the API version.
-        let expires_at = parse_expires_at(&body.expires_at).unwrap_or(now + 1800);
-
-        let mut cache = self.token_cache.write().await;
-        cache.insert(
-            key,
-            CachedCopilotToken {
-                token: body.token.clone(),
-                expires_at,
-            },
-        );
-
-        Ok(body.token)
-    }
-}
-
-fn parse_expires_at(value: &serde_json::Value) -> Option<u64> {
-    match value {
-        serde_json::Value::Number(n) => n.as_u64(),
-        serde_json::Value::String(s) => {
-            // Parse RFC3339 / ISO 8601 manually via chrono if available,
-            // or fall back to parsing as a Unix timestamp string.
-            s.parse::<u64>().ok().or_else(|| {
-                chrono::DateTime::parse_from_rfc3339(s)
-                    .ok()
-                    .map(|dt| dt.timestamp() as u64)
-            })
-        }
-        _ => None,
-    }
-}
-
 #[async_trait]
 impl ProviderAdapter for GithubCopilotAdapter {
     fn name(&self) -> &str {
@@ -150,7 +155,7 @@ impl ProviderAdapter for GithubCopilotAdapter {
     }
 
     fn endpoint(&self) -> &str {
-        &self.completions_endpoint
+        COMPLETIONS_URL
     }
 
     async fn stream_prompt(
@@ -160,7 +165,9 @@ impl ProviderAdapter for GithubCopilotAdapter {
         model: &str,
         api_key: &str,
     ) -> Result<BoxStream<'static, Result<ProviderStreamEvent, ProviderError>>, ProviderError> {
-        let copilot_token = self.get_copilot_token(client, api_key).await?;
+        info!(model = model, messages = messages.len(), "copilot: starting stream_prompt");
+
+        let copilot_token = self.resolve_api_token(client, api_key).await?;
 
         let payload = CopilotRequest {
             model,
@@ -168,27 +175,45 @@ impl ProviderAdapter for GithubCopilotAdapter {
             messages: messages
                 .iter()
                 .map(|m| CopilotRequestMessage {
-                    role: chat_role_as_copilot_role(&m.role),
+                    role: chat_role_str(&m.role),
                     content: &m.content,
                 })
                 .collect(),
         };
 
+        debug!(
+            url = COMPLETIONS_URL,
+            model = model,
+            "copilot: sending completion request"
+        );
+
         let response = client
-            .post(&self.completions_endpoint)
+            .post(COMPLETIONS_URL)
             .bearer_auth(&copilot_token)
             .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
-            .header("Editor-Version", "vscode/1.95.0")
-            .header("Editor-Plugin-Version", "copilot/1.236.0")
-            .header("Openai-Organization", "github-copilot")
             .header("Copilot-Integration-Id", "vscode-chat")
+            .header("Editor-Version", "vscode/1.100.0")
+            .header("Editor-Plugin-Version", "copilot-chat/0.30.0")
             .json(&payload)
             .send()
             .await
-            .map_err(ProviderError::Http)?
-            .error_for_status()
-            .map_err(ProviderError::Http)?;
+            .map_err(|e| {
+                error!(error = %e, "copilot: completion request failed to send");
+                ProviderError::Http(e)
+            })?;
+
+        let status = response.status();
+        debug!(status = %status, "copilot: completion response status");
+
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            error!(status = %status, body = %body, "copilot: completion returned non-2xx");
+            return Err(ProviderError::Other(
+                format!("completion request failed ({status}): {body}").into(),
+            ));
+        }
+
+        info!("copilot: streaming response started");
 
         Ok(parse_openai_stream(
             response,
@@ -198,7 +223,7 @@ impl ProviderAdapter for GithubCopilotAdapter {
     }
 }
 
-fn chat_role_as_copilot_role(role: &ChatRole) -> &'static str {
+fn chat_role_str(role: &ChatRole) -> &'static str {
     match role {
         ChatRole::System => "system",
         ChatRole::User => "user",

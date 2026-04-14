@@ -3,6 +3,7 @@ use std::sync::Arc;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::Client;
 use serde_json::Value;
+use tracing::{error, info};
 
 use crate::{
     chat::contracts::PromptMessage,
@@ -57,9 +58,25 @@ pub async fn stream_prompt(
 ) -> Result<BoxStream<'static, Result<ChatServiceStreamEvent, ChatServiceError>>, ChatServiceError> {
     let (trimmed_model, api_key) = validate_request(&prompt, &model, authorization)?;
 
+    info!(
+        provider = adapter.name(),
+        model = trimmed_model,
+        messages = messages.len(),
+        "chat: starting stream"
+    );
+
     let stream = adapter
         .stream_prompt(client, &messages, trimmed_model, api_key)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!(
+                provider = adapter.name(),
+                model = trimmed_model,
+                error = %e,
+                "chat: provider stream_prompt failed"
+            );
+            ChatServiceError::Provider(e)
+        })?;
 
     let mapped_stream = stream.map(|event| {
         match event {
