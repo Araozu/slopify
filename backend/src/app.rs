@@ -8,9 +8,8 @@ use tower_http::services::{ServeDir, ServeFile};
 use crate::{
     config::AppConfig,
     providers::{
-        anthropic::AnthropicAdapter,
-        openai_compatible::OpenRouterAdapter,
-        registry::ProviderRegistry,
+        anthropic::AnthropicAdapter, github_copilot::GithubCopilotAdapter,
+        openai_compatible::OpenRouterAdapter, registry::ProviderRegistry,
     },
     state::AppState,
 };
@@ -22,6 +21,7 @@ pub fn build_router(config: &AppConfig, db_pool: PgPool) -> Router {
     let mut registry = ProviderRegistry::new("openrouter");
     registry.register(Arc::new(OpenRouterAdapter::new()));
     registry.register(Arc::new(AnthropicAdapter::new()));
+    registry.register(Arc::new(GithubCopilotAdapter::new()));
 
     crate::http::routes::router()
         .fallback_service(ServeDir::new(static_dir).not_found_service(ServeFile::new(index_file)))

@@ -7,7 +7,8 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
     http::handlers::{
-        auth, chat, health, openrouter_keys, openrouter_models, streams, system_prompts, threads,
+        auth, chat, copilot_models, copilot_tokens, health, openrouter_keys, openrouter_models,
+        streams, system_prompts, threads,
     },
     state::AppState,
 };
@@ -41,6 +42,23 @@ fn api_router() -> Router<AppState> {
         .route(
             "/v1/openrouter-models/{id}",
             axum::routing::delete(openrouter_models::delete_openrouter_model),
+        )
+        .route(
+            "/v1/copilot-models",
+            get(copilot_models::list_copilot_models).post(copilot_models::create_copilot_model),
+        )
+        .route(
+            "/v1/copilot-models/{id}",
+            axum::routing::delete(copilot_models::delete_copilot_model),
+        )
+        .route(
+            "/v1/copilot-tokens",
+            get(copilot_tokens::list_copilot_tokens).post(copilot_tokens::create_copilot_token),
+        )
+        .route(
+            "/v1/copilot-tokens/{token_id}",
+            axum::routing::patch(copilot_tokens::update_copilot_token)
+                .delete(copilot_tokens::delete_copilot_token),
         )
         .route(
             "/v1/system-prompts",

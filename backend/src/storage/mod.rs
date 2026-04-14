@@ -1,3 +1,5 @@
+pub mod copilot_models;
+pub mod copilot_tokens;
 pub mod openrouter_keys;
 pub mod openrouter_models;
 pub mod sessions;

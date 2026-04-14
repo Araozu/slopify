@@ -8,7 +8,6 @@
 		SignOutIcon,
 		GearIcon,
 		ClockCounterClockwiseIcon,
-		KeyIcon,
 		ChatCircleTextIcon,
 		CubeIcon
 	} from 'phosphor-svelte';
@@ -61,22 +60,16 @@
 				Profile
 			</a>
 			<a
-				href={resolve('/(main)/settings/keys')}
+				href={resolve('/(main)/settings/providers')}
 				class="hidden rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10 sm:block"
 			>
-				Keys
+				Providers
 			</a>
 			<a
 				href={resolve('/(main)/settings/system-prompts')}
 				class="hidden rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10 sm:block"
 			>
 				Prompts
-			</a>
-			<a
-				href={resolve('/(main)/settings/openrouter')}
-				class="hidden rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10 sm:block"
-			>
-				Models
 			</a>
 		</nav>
 
@@ -109,17 +102,13 @@
 							<UserIcon class="mr-2 h-4 w-4" />
 							<span>Profile</span>
 						</DropdownMenu.Item>
-						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/settings/keys'))}>
-							<KeyIcon class="mr-2 h-4 w-4" />
-							<span>API Keys</span>
+						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/settings/providers'))}>
+							<CubeIcon class="mr-2 h-4 w-4" />
+							<span>Providers</span>
 						</DropdownMenu.Item>
 						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/settings/system-prompts'))}>
 							<ChatCircleTextIcon class="mr-2 h-4 w-4" />
 							<span>System Prompts</span>
-						</DropdownMenu.Item>
-						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/settings/openrouter'))}>
-							<CubeIcon class="mr-2 h-4 w-4" />
-							<span>OpenRouter Models</span>
 						</DropdownMenu.Item>
 						<DropdownMenu.Item>
 							<GearIcon class="mr-2 h-4 w-4" />

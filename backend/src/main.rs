@@ -2,6 +2,8 @@ mod auth;
 mod app;
 mod chat;
 mod config;
+mod copilot_models;
+mod copilot_tokens;
 mod db;
 mod http;
 mod openrouter_keys;

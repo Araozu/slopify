@@ -56,3 +56,23 @@ export interface OpenRouterModel {
 	id: string;
 	modelId: string;
 }
+
+export interface CopilotModel {
+	id: string;
+	modelId: string;
+}
+
+export interface CopilotToken {
+	id: string;
+	name: string;
+	githubToken: string;
+}
+
+export type ProviderSlug = 'openrouter' | 'github-copilot';
+
+export interface ProviderCredential {
+	id: string;
+	name: string;
+	provider: ProviderSlug;
+	token: string;
+}

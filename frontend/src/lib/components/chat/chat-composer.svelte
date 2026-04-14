@@ -12,20 +12,21 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
-	import type { OpenRouterApiKey, SystemPrompt, Thread, OpenRouterModel } from '$lib/types';
+	import type { ProviderCredential, SystemPrompt, Thread, OpenRouterModel } from '$lib/types';
 
 	interface Props {
 		draft?: string;
 		model?: string;
-		keys: OpenRouterApiKey[];
-		selectedKey: OpenRouterApiKey | null;
+		credentials: ProviderCredential[];
+		selectedCredential: ProviderCredential | null;
 		systemPrompts: SystemPrompt[];
 		selectedSystemPromptId: string | null;
 		savedModels: OpenRouterModel[];
+		canSaveModel: boolean;
 		isSending: boolean;
 		isBootstrapping: boolean;
 		activeThread: Thread | null;
-		onSelectKey: (id: string) => void;
+		onSelectCredential: (id: string) => void;
 		onSelectSystemPrompt: (id: string | null) => void;
 		onSaveModel: (modelId: string) => void;
 		onSend: () => void;
@@ -35,15 +36,16 @@
 	let {
 		draft = $bindable(''),
 		model = $bindable(''),
-		keys,
-		selectedKey,
+		credentials,
+		selectedCredential,
 		systemPrompts,
 		selectedSystemPromptId,
 		savedModels,
+		canSaveModel,
 		isSending,
 		isBootstrapping,
 		activeThread,
-		onSelectKey,
+		onSelectCredential,
 		onSelectSystemPrompt,
 		onSaveModel,
 		onSend,
@@ -66,6 +68,14 @@
 
 	const PREVIEW_LENGTH = 40;
 
+	const PROVIDER_LABELS: Record<string, string> = {
+		openrouter: 'OR',
+		'github-copilot': 'Copilot'
+	};
+
+	const openRouterCredentials = $derived(credentials.filter((c) => c.provider === 'openrouter'));
+	const copilotCredentials = $derived(credentials.filter((c) => c.provider === 'github-copilot'));
+
 	let modelDropdownOpen = $state(false);
 	let modelSearchRef: HTMLInputElement | null = $state(null);
 
@@ -87,51 +97,100 @@
 				<div class="flex items-center gap-2 truncate">
 					<KeyIcon
 						size={12}
-						weight={selectedKey ? 'fill' : 'regular'}
-						class={selectedKey ? 'text-primary' : 'text-muted-foreground/40'}
+						weight={selectedCredential ? 'fill' : 'regular'}
+						class={selectedCredential ? 'text-primary' : 'text-muted-foreground/40'}
 					/>
-					<span class={selectedKey ? 'text-foreground' : 'text-muted-foreground/40'}>
-						{selectedKey ? selectedKey.name : 'No keys saved'}
-					</span>
+					{#if selectedCredential}
+						<span
+							class="rounded bg-muted px-1 py-0.5 text-[9px] font-black tracking-widest text-muted-foreground/60 uppercase"
+							>{PROVIDER_LABELS[selectedCredential.provider] ?? selectedCredential.provider}</span
+						>
+						<span class="text-foreground">{selectedCredential.name}</span>
+					{:else}
+						<span class="text-muted-foreground/40">No credentials saved</span>
+					{/if}
 				</div>
 				<span class="text-[10px] font-black tracking-widest text-muted-foreground/30 uppercase"
 					>key</span
 				>
 			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start" class="w-56 rounded-lg shadow-xl">
+			<DropdownMenu.Content align="start" class="w-64 rounded-lg shadow-xl">
 				<DropdownMenu.Label
 					class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase"
-					>Select provider key</DropdownMenu.Label
+					>Select provider credential</DropdownMenu.Label
 				>
 				<DropdownMenu.Separator />
-				{#if keys.length === 0}
+				{#if credentials.length === 0}
 					<div class="px-2 py-3 text-center">
-						<p class="text-[11px] text-muted-foreground/60">No keys found</p>
+						<p class="text-[11px] text-muted-foreground/60">No credentials found</p>
 						<Button
 							variant="link"
 							class="mt-1 h-auto p-0 text-[10px] font-bold tracking-widest uppercase"
-							onclick={() => goto(resolve('/(main)/settings/keys'))}
+							onclick={() => goto(resolve('/(main)/settings/providers'))}
 						>
 							Add one in settings
 						</Button>
 					</div>
 				{:else}
-					{#each keys as key (key.id)}
-						<DropdownMenu.Item
-							class="flex items-center justify-between rounded-md py-2"
-							onclick={() => onSelectKey(key.id)}
+					{#if openRouterCredentials.length > 0}
+						<DropdownMenu.Label
+							class="text-[9px] font-black tracking-widest text-muted-foreground/30 uppercase"
+							>OpenRouter</DropdownMenu.Label
 						>
-							<div class="flex flex-col gap-0.5">
-								<span class="text-xs font-bold">{key.name}</span>
-								<span class="font-mono text-[9px] text-muted-foreground/50"
-									>{key.apiKey.slice(0, 8)}••••</span
-								>
-							</div>
-							{#if selectedKey?.id === key.id}
-								<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
-							{/if}
-						</DropdownMenu.Item>
-					{/each}
+						{#each openRouterCredentials as cred (cred.id)}
+							<DropdownMenu.Item
+								class="flex items-center justify-between rounded-md py-2"
+								onclick={() => onSelectCredential(cred.id)}
+							>
+								<div class="flex flex-col gap-0.5">
+									<div class="flex items-center gap-1.5">
+										<span
+											class="rounded bg-muted px-1 py-0.5 text-[8px] font-black tracking-widest text-muted-foreground/50 uppercase"
+											>OR</span
+										>
+										<span class="text-xs font-bold">{cred.name}</span>
+									</div>
+									<span class="font-mono text-[9px] text-muted-foreground/50"
+										>{cred.token.slice(0, 8)}••••</span
+									>
+								</div>
+								{#if selectedCredential?.id === cred.id}
+									<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
+								{/if}
+							</DropdownMenu.Item>
+						{/each}
+					{/if}
+					{#if copilotCredentials.length > 0}
+						{#if openRouterCredentials.length > 0}
+							<DropdownMenu.Separator />
+						{/if}
+						<DropdownMenu.Label
+							class="text-[9px] font-black tracking-widest text-muted-foreground/30 uppercase"
+							>GitHub Copilot</DropdownMenu.Label
+						>
+						{#each copilotCredentials as cred (cred.id)}
+							<DropdownMenu.Item
+								class="flex items-center justify-between rounded-md py-2"
+								onclick={() => onSelectCredential(cred.id)}
+							>
+								<div class="flex flex-col gap-0.5">
+									<div class="flex items-center gap-1.5">
+										<span
+											class="rounded bg-muted px-1 py-0.5 text-[8px] font-black tracking-widest text-muted-foreground/50 uppercase"
+											>Copilot</span
+										>
+										<span class="text-xs font-bold">{cred.name}</span>
+									</div>
+									<span class="font-mono text-[9px] text-muted-foreground/50"
+										>{cred.token.slice(0, 8)}••••</span
+									>
+								</div>
+								{#if selectedCredential?.id === cred.id}
+									<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
+								{/if}
+							</DropdownMenu.Item>
+						{/each}
+					{/if}
 				{/if}
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
@@ -243,7 +302,7 @@
 								<Button
 									variant="link"
 									class="mt-1 h-auto p-0 text-[10px] font-bold tracking-widest uppercase"
-									onclick={() => goto(resolve('/(main)/settings/openrouter'))}
+									onclick={() => goto(resolve('/(main)/settings/providers'))}
 								>
 									Manage in settings
 								</Button>
@@ -261,7 +320,7 @@
 								</DropdownMenu.Item>
 							{/each}
 
-							{#if model.trim() && !isModelAlreadySaved}
+							{#if model.trim() && !isModelAlreadySaved && canSaveModel}
 								<DropdownMenu.Item
 									class="mt-1 flex items-center gap-2 rounded-lg py-2 text-primary"
 									onclick={() => onSaveModel(model.trim())}
@@ -306,7 +365,7 @@
 				isBootstrapping ||
 				!activeThread ||
 				!draft.trim() ||
-				!selectedKey ||
+				!selectedCredential ||
 				!model.trim()}
 			onclick={onSend}
 		>

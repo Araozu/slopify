@@ -8,10 +8,15 @@
 		threadsQueryOptions
 	} from '$lib/queries/thread-query';
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
+	import { copilotTokensQueryOptions } from '$lib/queries/copilot-token-query';
 	import {
 		openRouterModelsQueryOptions,
 		invalidateOpenRouterModels
 	} from '$lib/queries/openrouter-model-query';
+	import {
+		copilotModelsQueryOptions,
+		invalidateCopilotModels
+	} from '$lib/queries/copilot-model-query';
 	import { systemPromptsQueryOptions } from '$lib/queries/system-prompt-query';
 	import {
 		createThread,
@@ -22,12 +27,16 @@
 		updateThreadTitle
 	} from '$lib/thread-client';
 	import { createOpenRouterModel } from '$lib/openrouter-model-client';
+	import { createCopilotModel } from '$lib/copilot-model-client';
 	import type {
 		Message,
 		OpenRouterApiKey,
+		CopilotToken,
+		ProviderCredential,
 		SystemPrompt,
 		Thread,
-		OpenRouterModel
+		OpenRouterModel,
+		CopilotModel
 	} from '$lib/types';
 	import { tick, untrack, onMount } from 'svelte';
 	import ChatComposer from './chat-composer.svelte';
@@ -74,22 +83,63 @@
 
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
+	const copilotTokensQuery = createQuery(() => copilotTokensQueryOptions());
 	const modelsQuery = createQuery(() => openRouterModelsQueryOptions());
+	const copilotModelsQuery = createQuery(() => copilotModelsQueryOptions());
 	const systemPromptsQuery = createQuery(() => systemPromptsQueryOptions());
 
-	const keys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
-	let selectedKeyId = $state<string | null>(null);
-	const selectedKey = $derived(keys.find((k) => k.id === selectedKeyId) ?? keys[0] ?? null);
+	const openRouterKeys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
+	const copilotTokens = $derived((copilotTokensQuery.data ?? []) as CopilotToken[]);
+
+	const credentials = $derived<ProviderCredential[]>([
+		...openRouterKeys.map(
+			(k): ProviderCredential => ({
+				id: k.id,
+				name: k.name,
+				provider: 'openrouter',
+				token: k.apiKey
+			})
+		),
+		...copilotTokens.map(
+			(t): ProviderCredential => ({
+				id: t.id,
+				name: t.name,
+				provider: 'github-copilot',
+				token: t.githubToken
+			})
+		)
+	]);
+
+	let selectedCredentialId = $state<string | null>(null);
+	const selectedCredential = $derived(
+		credentials.find((c) => c.id === selectedCredentialId) ?? credentials[0] ?? null
+	);
+
+	const canSaveModel = $derived(selectedCredential !== null);
 
 	const systemPrompts = $derived((systemPromptsQuery.data ?? []) as SystemPrompt[]);
 	let selectedSystemPromptId = $state<string | null>(null);
 
-	const savedModels = $derived((modelsQuery.data ?? []) as OpenRouterModel[]);
+	const savedOpenRouterModels = $derived((modelsQuery.data ?? []) as OpenRouterModel[]);
+	const savedCopilotModels = $derived((copilotModelsQuery.data ?? []) as CopilotModel[]);
+	const activeSavedModels = $derived.by(() => {
+		const provider = selectedCredential?.provider;
+		if (provider === 'openrouter') return savedOpenRouterModels;
+		if (provider === 'github-copilot') return savedCopilotModels;
+		return [];
+	});
 
 	const createModelMutation = createMutation(() => ({
 		mutationFn: (modelId: string) => createOpenRouterModel(modelId),
 		onSuccess: async () => {
 			await invalidateOpenRouterModels(queryClient);
+		}
+	}));
+
+	const createCopilotModelMutation = createMutation(() => ({
+		mutationFn: (modelId: string) => createCopilotModel(modelId),
+		onSuccess: async () => {
+			await invalidateCopilotModels(queryClient);
 		}
 	}));
 
@@ -558,10 +608,11 @@
 
 		const requestThreadId = activeThread.id;
 		const prompt = draft.trim();
-		const trimmedApiKey = selectedKey?.apiKey.trim() ?? '';
+		const trimmedToken = selectedCredential?.token.trim() ?? '';
+		const provider = selectedCredential?.provider;
 		const selectedModel = model.trim();
 
-		if (!prompt || !trimmedApiKey || !selectedModel || isSending) {
+		if (!prompt || !trimmedToken || !selectedModel || !provider || isSending) {
 			return;
 		}
 
@@ -580,9 +631,10 @@
 					model: selectedModel,
 					thread_id: requestThreadId,
 					prompt,
-					system_prompt_id: selectedSystemPromptId ?? undefined
+					system_prompt_id: selectedSystemPromptId ?? undefined,
+					provider
 				},
-				trimmedApiKey,
+				trimmedToken,
 				(event) => {
 					switch (event.type) {
 						case 'message_started': {
@@ -746,17 +798,24 @@
 		<ChatComposer
 			bind:draft
 			bind:model
-			{keys}
-			{selectedKey}
+			{credentials}
+			{selectedCredential}
 			{systemPrompts}
 			{selectedSystemPromptId}
-			{savedModels}
+			savedModels={activeSavedModels}
+			{canSaveModel}
 			{isSending}
 			{isBootstrapping}
 			{activeThread}
-			onSelectKey={(id) => (selectedKeyId = id)}
+			onSelectCredential={(id) => (selectedCredentialId = id)}
 			onSelectSystemPrompt={(id) => (selectedSystemPromptId = id)}
-			onSaveModel={(modelId) => createModelMutation.mutate(modelId)}
+			onSaveModel={(modelId) => {
+				if (selectedCredential?.provider === 'github-copilot') {
+					createCopilotModelMutation.mutate(modelId);
+				} else {
+					createModelMutation.mutate(modelId);
+				}
+			}}
 			onSend={sendMessage}
 			onComposerKeydown={handleComposerKeydown}
 		/>

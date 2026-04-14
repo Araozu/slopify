@@ -1,5 +1,7 @@
 pub mod auth;
 pub mod chat;
+pub mod copilot_models;
+pub mod copilot_tokens;
 pub mod health;
 pub mod openrouter_keys;
 pub mod openrouter_models;
