@@ -64,6 +64,7 @@
 	let model = $state(DEFAULT_MODEL);
 	let isSending = $state(false);
 	let hasRequestedInitialThread = $state(false);
+	let initializedThreadIds = $state(new Set<string>());
 	let pendingStreamUpdates = $state<
 		Record<string, { threadId: string; messageId: string; text: string; reasoning: string }>
 	>({});
@@ -261,6 +262,12 @@
 	let isBootstrapping = $derived(
 		threadsQuery.isPending || (threads.length === 0 && isCreatingThread)
 	);
+	let isComposerBootstrapping = $derived(
+		isBootstrapping ||
+			keysQuery.isPending ||
+			copilotTokensQuery.isPending ||
+			systemPromptsQuery.isPending
+	);
 	let loadError = $derived.by(() => {
 		const queryError = threadsQuery.error;
 		if (queryError instanceof Error) {
@@ -337,6 +344,59 @@
 			...currentMessagesByThread,
 			[threadId]: fetchedMessages
 		};
+	});
+
+	// Once per session per thread: pre-populate composer selectors from the last message.
+	// Waits until thread messages and all credential/prompt data are fully loaded.
+	$effect(() => {
+		const tid = threadId;
+		const currentMessages = messages;
+
+		if (
+			!tid ||
+			!threadMessagesQuery.isSuccess ||
+			keysQuery.isPending ||
+			copilotTokensQuery.isPending ||
+			systemPromptsQuery.isPending
+		) {
+			return;
+		}
+
+		if (untrack(() => initializedThreadIds.has(tid))) {
+			return;
+		}
+
+		const currentCredentials = credentials;
+		const currentSystemPrompts = systemPrompts;
+
+		untrack(() => {
+			initializedThreadIds = new Set([...initializedThreadIds, tid]);
+
+			const lastWithProvider = currentMessages.findLast((m) => m.provider != null);
+			if (lastWithProvider?.provider?.model) {
+				model = lastWithProvider.provider.model;
+			}
+			if (lastWithProvider?.provider?.provider) {
+				const matchingCredential = currentCredentials.find(
+					(c) => c.provider === lastWithProvider.provider!.provider
+				);
+				if (matchingCredential) {
+					selectedCredentialId = matchingCredential.id;
+				}
+			}
+
+			const lastWithSysPrompt = currentMessages.findLast((m) => m.system_prompt !== undefined);
+			if (lastWithSysPrompt) {
+				if (lastWithSysPrompt.system_prompt) {
+					const matchingPrompt = currentSystemPrompts.find(
+						(p) => p.content === lastWithSysPrompt.system_prompt
+					);
+					selectedSystemPromptId = matchingPrompt?.id ?? null;
+				} else {
+					selectedSystemPromptId = null;
+				}
+			}
+		});
 	});
 
 	function scrollToLatest(behavior: ScrollBehavior = 'auto') {
@@ -825,7 +885,7 @@
 			savedModels={activeSavedModels}
 			{canSaveModel}
 			{isSending}
-			{isBootstrapping}
+			isBootstrapping={isComposerBootstrapping}
 			{activeThread}
 			onSelectCredential={(id) => {
 				selectedCredentialId = id;
