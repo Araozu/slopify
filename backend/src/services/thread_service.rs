@@ -107,8 +107,10 @@ pub async fn save_message(
     thread_id: Uuid,
     role: &str,
     content: &str,
+    provider: serde_json::Value,
+    system_prompt: Option<&str>,
 ) -> Result<Message, ThreadServiceError> {
-    let record = thread_storage::create_message(pool, user_id, thread_id, role, content).await?;
+    let record = thread_storage::create_message(pool, user_id, thread_id, role, content, provider, system_prompt).await?;
     Ok(map_message(record))
 }
 
@@ -117,8 +119,9 @@ pub async fn create_assistant_message_shell(
     user_id: Uuid,
     thread_id: Uuid,
     provider: serde_json::Value,
+    system_prompt: Option<&str>,
 ) -> Result<Message, ThreadServiceError> {
-    let record = thread_storage::create_assistant_message_shell(pool, user_id, thread_id, provider).await?;
+    let record = thread_storage::create_assistant_message_shell(pool, user_id, thread_id, provider, system_prompt).await?;
     Ok(map_message(record))
 }
 
@@ -212,6 +215,7 @@ fn map_message(record: thread_storage::MessageRecord) -> Message {
         provider: record.provider,
         metadata: record.metadata,
         content: record.content,
+        system_prompt: record.system_prompt,
         timestamp: record.created_at.to_rfc3339(),
     }
 }

@@ -641,12 +641,17 @@
 		pendingStreamUpdates = {};
 
 		try {
+			const selectedSystemPrompt = selectedSystemPromptId
+				? systemPrompts.find((sp) => sp.id === selectedSystemPromptId)
+				: null;
+
 			await streamChatCompletion(
 				{
 					model: selectedModel,
 					thread_id: requestThreadId,
 					prompt,
 					system_prompt_id: selectedSystemPromptId ?? undefined,
+					system_prompt: selectedSystemPrompt?.content,
 					provider
 				},
 				trimmedToken,

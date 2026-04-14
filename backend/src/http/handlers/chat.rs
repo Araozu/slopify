@@ -33,6 +33,7 @@ pub struct PromptRequest {
     pub model: String,
     pub thread_id: Option<Uuid>,
     pub system_prompt_id: Option<Uuid>,
+    pub system_prompt: Option<String>,
     pub provider: Option<String>,
 }
 
@@ -53,13 +54,46 @@ pub async fn complete_prompt(
 
     let thread_id = payload.thread_id;
     let system_prompt_id = payload.system_prompt_id;
+
+    // Resolve system prompt content: prefer explicit content, then load by ID.
+    let system_prompt_content: Option<String> = if let Some(content) = payload.system_prompt.as_ref().filter(|s| !s.trim().is_empty()) {
+        Some(content.clone())
+    } else if let Some(sp_id) = system_prompt_id {
+        match system_prompt_service::get_system_prompt_content(
+            &state.db_pool,
+            session.user_id,
+            sp_id,
+        )
+        .await
+        {
+            Ok(content) => Some(content),
+            Err(error) => {
+                eprintln!("failed to load system prompt {sp_id}: {error}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let provider_name_for_storage = payload.provider.clone();
+    let model_for_storage = payload.model.clone();
+
     let mut prompt_messages = if let Some(thread_id) = thread_id {
+        // Build provider JSON for the user message
+        let user_provider_json = serde_json::json!({
+            "provider": provider_name_for_storage.as_deref().unwrap_or("unknown"),
+            "model": &model_for_storage,
+        });
+
         if let Err(error) = thread_service::save_message(
             &state.db_pool,
             session.user_id,
             thread_id,
             "user",
             &payload.prompt,
+            user_provider_json,
+            system_prompt_content.as_deref(),
         )
         .await
         {
@@ -87,27 +121,14 @@ pub async fn complete_prompt(
         }]
     };
 
-    if let Some(system_prompt_id) = system_prompt_id {
-        match system_prompt_service::get_system_prompt_content(
-            &state.db_pool,
-            session.user_id,
-            system_prompt_id,
-        )
-        .await
-        {
-            Ok(content) => {
-                prompt_messages.insert(
-                    0,
-                    PromptMessage {
-                        role: ChatRole::System,
-                        content,
-                    },
-                );
-            }
-            Err(error) => {
-                eprintln!("failed to load system prompt {system_prompt_id}: {error}");
-            }
-        }
+    if let Some(ref content) = system_prompt_content {
+        prompt_messages.insert(
+            0,
+            PromptMessage {
+                role: ChatRole::System,
+                content: content.clone(),
+            },
+        );
     }
 
     let provider_name = payload.provider;
@@ -141,6 +162,7 @@ pub async fn complete_prompt(
     let db_pool = state.db_pool.clone();
     let user_id = session.user_id;
     let requested_model = payload.model.clone();
+    let system_prompt_for_stream = system_prompt_content.clone();
 
     let sse_stream = stream! {
         let mut text = String::new();
@@ -160,6 +182,7 @@ pub async fn complete_prompt(
             &requested_model,
             &provider_display_name,
             provider_endpoint.as_deref(),
+            system_prompt_for_stream.as_deref(),
         ).await {
             Ok(message) => message,
             Err(error) => {
@@ -273,6 +296,7 @@ pub async fn complete_prompt(
                 finish_reason: finish_reason.clone(),
                 vendor_metadata: vendor_metadata.clone(),
             },
+            system_prompt: started.system_prompt.clone(),
         };
 
         if let (Some(thread_id), Some(message_id_uuid)) = (thread_id, persisted_message_id) {
@@ -391,6 +415,7 @@ async fn build_initial_message(
     model: &str,
     provider_name: &str,
     provider_endpoint: Option<&str>,
+    system_prompt: Option<&str>,
 ) -> Result<ClientChatMessage, ThreadServiceError> {
     let provider = ProviderDescriptor {
         provider: provider_name.to_string(),
@@ -408,6 +433,7 @@ async fn build_initial_message(
             user_id,
             thread_id,
             serde_json::to_value(&provider).unwrap_or_else(|_| serde_json::json!({ "provider": provider_name })),
+            system_prompt,
         )
         .await?;
         return Ok(ClientChatMessage {
@@ -422,6 +448,7 @@ async fn build_initial_message(
                 finish_reason: None,
                 vendor_metadata: serde_json::json!({}),
             },
+            system_prompt: shell.system_prompt,
         });
     }
 
@@ -437,6 +464,7 @@ async fn build_initial_message(
             finish_reason: None,
             vendor_metadata: serde_json::json!({}),
         },
+        system_prompt: system_prompt.map(String::from),
     })
 }
 
