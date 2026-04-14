@@ -20,6 +20,7 @@ export interface Message {
 		vendor_metadata?: unknown;
 	};
 	content: string;
+	system_prompt?: string | null;
 	timestamp: string;
 }
 

@@ -8,6 +8,7 @@ export type StreamChatPayload = {
 	thread_id: string;
 	prompt: string;
 	system_prompt_id?: string;
+	system_prompt?: string;
 	provider?: string;
 };
 

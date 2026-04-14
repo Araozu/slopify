@@ -143,6 +143,7 @@ pub struct MessageRecord {
     pub provider: serde_json::Value,
     pub metadata: serde_json::Value,
     pub content: String,
+    pub system_prompt: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -152,6 +153,8 @@ pub async fn create_message(
     thread_id: Uuid,
     role: &str,
     content: &str,
+    provider: serde_json::Value,
+    system_prompt: Option<&str>,
 ) -> Result<MessageRecord, sqlx::Error> {
     if !thread_exists_for_user(pool, user_id, thread_id).await? {
         return Err(sqlx::Error::RowNotFound);
@@ -159,9 +162,9 @@ pub async fn create_message(
 
     let record = sqlx::query_as::<_, MessageRecord>(
         r#"
-        INSERT INTO messages (id, thread_id, role, status, content, parts, provider, metadata)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id, role, status, parts, provider, metadata, content, created_at
+        INSERT INTO messages (id, thread_id, role, status, content, parts, provider, metadata, system_prompt)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, role, status, parts, provider, metadata, content, system_prompt, created_at
         "#,
     )
     .bind(Uuid::new_v4())
@@ -170,8 +173,9 @@ pub async fn create_message(
     .bind("completed")
     .bind(content)
     .bind(serde_json::json!([{ "kind": "text", "text": content }]))
-    .bind(serde_json::json!({"name": "openrouter"}))
+    .bind(provider)
     .bind(serde_json::json!({}))
+    .bind(system_prompt)
     .fetch_one(pool)
     .await?;
 
@@ -195,6 +199,7 @@ pub async fn create_assistant_message_shell(
     user_id: Uuid,
     thread_id: Uuid,
     provider: serde_json::Value,
+    system_prompt: Option<&str>,
 ) -> Result<MessageRecord, sqlx::Error> {
     if !thread_exists_for_user(pool, user_id, thread_id).await? {
         return Err(sqlx::Error::RowNotFound);
@@ -202,14 +207,15 @@ pub async fn create_assistant_message_shell(
 
     let record = sqlx::query_as::<_, MessageRecord>(
         r#"
-        INSERT INTO messages (id, thread_id, role, status, content, parts, provider, metadata)
-        VALUES ($1, $2, 'assistant', 'streaming', '', '[]'::jsonb, $3, '{}'::jsonb)
-        RETURNING id, role, status, parts, provider, metadata, content, created_at
+        INSERT INTO messages (id, thread_id, role, status, content, parts, provider, metadata, system_prompt)
+        VALUES ($1, $2, 'assistant', 'streaming', '', '[]'::jsonb, $3, '{}'::jsonb, $4)
+        RETURNING id, role, status, parts, provider, metadata, content, system_prompt, created_at
         "#,
     )
     .bind(Uuid::new_v4())
     .bind(thread_id)
     .bind(provider)
+    .bind(system_prompt)
     .fetch_one(pool)
     .await?;
 
@@ -276,6 +282,7 @@ pub async fn list_messages(
             messages.provider,
             messages.metadata,
             messages.content,
+            messages.system_prompt,
             messages.created_at
         FROM messages
         INNER JOIN threads ON threads.id = messages.thread_id
@@ -383,8 +390,8 @@ pub async fn fork_thread_at_message(
 
     sqlx::query(
         r#"
-        INSERT INTO messages (id, thread_id, role, status, content, parts, provider, metadata, created_at)
-        SELECT gen_random_uuid(), $1, role, status, content, parts, provider, metadata, created_at
+        INSERT INTO messages (id, thread_id, role, status, content, parts, provider, metadata, system_prompt, created_at)
+        SELECT gen_random_uuid(), $1, role, status, content, parts, provider, metadata, system_prompt, created_at
         FROM messages
         WHERE thread_id = $2 AND created_at <= $3
         ORDER BY created_at ASC
