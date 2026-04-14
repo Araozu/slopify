@@ -44,7 +44,7 @@
 	let titleInputRef: HTMLInputElement | null = $state(null);
 
 	$effect(() => {
-		threadId;
+		void threadId;
 		editingTitle = false;
 	});
 

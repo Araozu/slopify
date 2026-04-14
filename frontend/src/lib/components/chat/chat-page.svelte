@@ -110,6 +110,9 @@
 		)
 	]);
 
+	type ThreadPrefs = { credentialId: string | null; systemPromptId: string | null };
+	let threadPrefs = $state<Record<string, ThreadPrefs>>({});
+
 	let selectedCredentialId = $state<string | null>(null);
 	const selectedCredential = $derived(
 		credentials.find((c) => c.id === selectedCredentialId) ?? credentials[0] ?? null
@@ -119,6 +122,15 @@
 
 	const systemPrompts = $derived((systemPromptsQuery.data ?? []) as SystemPrompt[]);
 	let selectedSystemPromptId = $state<string | null>(null);
+
+	// Restore per-thread credential and system prompt when the active thread changes.
+	// `untrack` prevents `threadPrefs` writes from re-triggering this effect.
+	$effect(() => {
+		const tid = threadId;
+		const prefs = untrack(() => threadPrefs)[tid];
+		selectedCredentialId = prefs?.credentialId ?? null;
+		selectedSystemPromptId = prefs?.systemPromptId ?? null;
+	});
 
 	const savedOpenRouterModels = $derived((modelsQuery.data ?? []) as OpenRouterModel[]);
 	const savedCopilotModels = $derived((copilotModelsQuery.data ?? []) as CopilotModel[]);
@@ -175,6 +187,9 @@
 			messagesByThread = Object.fromEntries(
 				Object.entries(messagesByThread).filter(([key]) => key !== deletedId)
 			);
+			threadPrefs = Object.fromEntries(
+				Object.entries(threadPrefs).filter(([key]) => key !== deletedId)
+			);
 			if (deletedId === threadId) {
 				const remaining = (queryClient.getQueryData(threadKeys.all) as Thread[] | undefined) ?? [];
 				if (remaining.length > 0) {
@@ -221,8 +236,8 @@
 	let messages = $derived(messagesByThread[threadId] ?? []);
 
 	$effect(() => {
-		if (activeThread?.model) {
-			model = activeThread.model;
+		if (activeThread) {
+			model = activeThread.model ?? DEFAULT_MODEL;
 		}
 	});
 	let threadTitle = $derived(activeThread ? getThreadTitle(activeThread, messages) : 'Thread');
@@ -807,8 +822,26 @@
 			{isSending}
 			{isBootstrapping}
 			{activeThread}
-			onSelectCredential={(id) => (selectedCredentialId = id)}
-			onSelectSystemPrompt={(id) => (selectedSystemPromptId = id)}
+			onSelectCredential={(id) => {
+				selectedCredentialId = id;
+				threadPrefs = {
+					...threadPrefs,
+					[threadId]: {
+						credentialId: id,
+						systemPromptId: threadPrefs[threadId]?.systemPromptId ?? null
+					}
+				};
+			}}
+			onSelectSystemPrompt={(id) => {
+				selectedSystemPromptId = id;
+				threadPrefs = {
+					...threadPrefs,
+					[threadId]: {
+						credentialId: threadPrefs[threadId]?.credentialId ?? null,
+						systemPromptId: id
+					}
+				};
+			}}
 			onSaveModel={(modelId) => {
 				if (selectedCredential?.provider === 'github-copilot') {
 					createCopilotModelMutation.mutate(modelId);
