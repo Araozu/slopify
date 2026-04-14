@@ -2,6 +2,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{
+    chat::contracts::ProviderDescriptor,
     storage::threads as thread_storage,
     threads::contracts::{Message, MessagePart, Thread},
 };
@@ -107,10 +108,12 @@ pub async fn save_message(
     thread_id: Uuid,
     role: &str,
     content: &str,
-    provider: serde_json::Value,
+    provider: &ProviderDescriptor,
     system_prompt: Option<&str>,
 ) -> Result<Message, ThreadServiceError> {
-    let record = thread_storage::create_message(pool, user_id, thread_id, role, content, provider, system_prompt).await?;
+    let provider_json = serde_json::to_value(provider)
+        .unwrap_or_else(|_| serde_json::json!({ "provider": provider.provider }));
+    let record = thread_storage::create_message(pool, user_id, thread_id, role, content, provider_json, system_prompt).await?;
     Ok(map_message(record))
 }
 
@@ -118,10 +121,12 @@ pub async fn create_assistant_message_shell(
     pool: &PgPool,
     user_id: Uuid,
     thread_id: Uuid,
-    provider: serde_json::Value,
+    provider: &ProviderDescriptor,
     system_prompt: Option<&str>,
 ) -> Result<Message, ThreadServiceError> {
-    let record = thread_storage::create_assistant_message_shell(pool, user_id, thread_id, provider, system_prompt).await?;
+    let provider_json = serde_json::to_value(provider)
+        .unwrap_or_else(|_| serde_json::json!({ "provider": provider.provider }));
+    let record = thread_storage::create_assistant_message_shell(pool, user_id, thread_id, provider_json, system_prompt).await?;
     Ok(map_message(record))
 }
 

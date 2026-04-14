@@ -68,7 +68,7 @@ pub async fn complete_prompt(
         {
             Ok(content) => Some(content),
             Err(error) => {
-                eprintln!("failed to load system prompt {sp_id}: {error}");
+                tracing::warn!(system_prompt_id = %sp_id, %error, "failed to load system prompt");
                 None
             }
         }
@@ -80,11 +80,11 @@ pub async fn complete_prompt(
     let model_for_storage = payload.model.clone();
 
     let mut prompt_messages = if let Some(thread_id) = thread_id {
-        // Build provider JSON for the user message
-        let user_provider_json = serde_json::json!({
-            "provider": provider_name_for_storage.as_deref().unwrap_or("unknown"),
-            "model": &model_for_storage,
-        });
+        let user_provider = ProviderDescriptor {
+            provider: provider_name_for_storage.clone().unwrap_or_else(|| "unknown".to_string()),
+            model: model_for_storage.clone(),
+            endpoint: None,
+        };
 
         if let Err(error) = thread_service::save_message(
             &state.db_pool,
@@ -92,7 +92,7 @@ pub async fn complete_prompt(
             thread_id,
             "user",
             &payload.prompt,
-            user_provider_json,
+            &user_provider,
             system_prompt_content.as_deref(),
         )
         .await
@@ -432,7 +432,7 @@ async fn build_initial_message(
             db_pool,
             user_id,
             thread_id,
-            serde_json::to_value(&provider).unwrap_or_else(|_| serde_json::json!({ "provider": provider_name })),
+            &provider,
             system_prompt,
         )
         .await?;
