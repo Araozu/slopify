@@ -264,9 +264,9 @@
 	);
 	let isComposerBootstrapping = $derived(
 		isBootstrapping ||
-			keysQuery.isPending ||
-			copilotTokensQuery.isPending ||
-			systemPromptsQuery.isPending
+			!keysQuery.isSuccess ||
+			!copilotTokensQuery.isSuccess ||
+			!systemPromptsQuery.isSuccess
 	);
 	let loadError = $derived.by(() => {
 		const queryError = threadsQuery.error;
@@ -355,9 +355,9 @@
 		if (
 			!tid ||
 			!threadMessagesQuery.isSuccess ||
-			keysQuery.isPending ||
-			copilotTokensQuery.isPending ||
-			systemPromptsQuery.isPending
+			!keysQuery.isSuccess ||
+			!copilotTokensQuery.isSuccess ||
+			!systemPromptsQuery.isSuccess
 		) {
 			return;
 		}
@@ -370,7 +370,8 @@
 		const currentSystemPrompts = systemPrompts;
 
 		untrack(() => {
-			initializedThreadIds = new Set([...initializedThreadIds, tid]);
+			let nextCredentialId: string | null = null;
+			let nextSystemPromptId: string | null = null;
 
 			const lastWithProvider = currentMessages.findLast((m) => m.provider != null);
 			if (lastWithProvider?.provider?.model) {
@@ -381,7 +382,7 @@
 					(c) => c.provider === lastWithProvider.provider!.provider
 				);
 				if (matchingCredential) {
-					selectedCredentialId = matchingCredential.id;
+					nextCredentialId = matchingCredential.id;
 				}
 			}
 
@@ -391,11 +392,22 @@
 					const matchingPrompt = currentSystemPrompts.find(
 						(p) => p.content === lastWithSysPrompt.system_prompt
 					);
-					selectedSystemPromptId = matchingPrompt?.id ?? null;
+					nextSystemPromptId = matchingPrompt?.id ?? null;
 				} else {
-					selectedSystemPromptId = null;
+					nextSystemPromptId = null;
 				}
 			}
+
+			selectedCredentialId = nextCredentialId;
+			selectedSystemPromptId = nextSystemPromptId;
+			threadPrefs = {
+				...threadPrefs,
+				[tid]: {
+					credentialId: nextCredentialId,
+					systemPromptId: nextSystemPromptId
+				}
+			};
+			initializedThreadIds = new Set([...initializedThreadIds, tid]);
 		});
 	});
 
