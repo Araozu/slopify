@@ -66,6 +66,7 @@ pub struct ClientChatMessage {
     pub provider: ProviderDescriptor,
     pub created_at: String,
     pub metadata: ClientChatMessageMetadata,
+    pub system_prompt: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

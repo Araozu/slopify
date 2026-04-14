@@ -65,5 +65,6 @@ fn hello_world_message() -> ClientChatMessage {
                 "source": "hello_stream"
             }),
         },
+        system_prompt: None,
     }
 }

@@ -17,6 +17,7 @@ pub struct Message {
     pub provider: Value,
     pub metadata: Value,
     pub content: String,
+    pub system_prompt: Option<String>,
     pub timestamp: String,
 }
 
