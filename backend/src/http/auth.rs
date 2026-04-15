@@ -111,6 +111,7 @@ pub fn build_session_cookie(token: &str) -> Cookie<'static> {
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)
+        .max_age(time::Duration::days(auth_service::SESSION_DURATION_DAYS))
         .build()
 }
 

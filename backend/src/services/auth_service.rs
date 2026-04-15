@@ -5,6 +5,8 @@ use argon2::{
 use sqlx::PgPool;
 use uuid::Uuid;
 
+pub const SESSION_DURATION_DAYS: i64 = 7;
+
 use crate::{
     auth::contracts::User,
     storage::{sessions as session_storage, users as user_storage},
@@ -149,8 +151,9 @@ async fn create_authenticated_user(
         .await?
         .ok_or(AuthServiceError::InvalidCredentials)?;
     let session_token = generate_session_token()?;
+    let expires_at = chrono::Utc::now() + chrono::Duration::days(SESSION_DURATION_DAYS);
 
-    session_storage::create_session(pool, Uuid::new_v4(), user.id, &session_token).await?;
+    session_storage::create_session(pool, Uuid::new_v4(), user.id, &session_token, expires_at).await?;
 
     Ok(AuthenticatedUser {
         user: map_user(user),

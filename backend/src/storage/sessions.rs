@@ -1,4 +1,4 @@
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, types::chrono::{DateTime, Utc}};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, FromRow)]
@@ -11,16 +11,18 @@ pub async fn create_session(
     id: Uuid,
     user_id: Uuid,
     token: &str,
+    expires_at: DateTime<Utc>,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
-        INSERT INTO sessions (id, user_id, token)
-        VALUES ($1, $2, $3)
+        INSERT INTO sessions (id, user_id, token, expires_at)
+        VALUES ($1, $2, $3, $4)
         "#,
     )
     .bind(id)
     .bind(user_id)
     .bind(token)
+    .bind(expires_at)
     .execute(pool)
     .await?;
 
@@ -36,6 +38,7 @@ pub async fn find_session_by_token(
         SELECT user_id
         FROM sessions
         WHERE token = $1
+          AND expires_at > NOW()
         "#,
     )
     .bind(token)
