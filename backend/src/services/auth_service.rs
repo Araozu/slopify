@@ -5,7 +5,7 @@ use argon2::{
 use sqlx::PgPool;
 use uuid::Uuid;
 
-const SESSION_DURATION_DAYS: i64 = 7;
+pub const SESSION_DURATION_DAYS: i64 = 7;
 
 use crate::{
     auth::contracts::User,
