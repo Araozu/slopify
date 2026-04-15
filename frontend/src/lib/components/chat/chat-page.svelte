@@ -811,7 +811,7 @@
 	}
 
 	function handleComposerKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !event.shiftKey) {
+		if (event.key === 'Enter' && event.ctrlKey) {
 			event.preventDefault();
 			void sendMessage();
 		}

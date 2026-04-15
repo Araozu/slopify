@@ -11,6 +11,7 @@
 	} from 'phosphor-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { Input } from '$lib/components/ui/input';
 	import type { ProviderCredential, SystemPrompt, Thread, OpenRouterModel } from '$lib/types';
 
@@ -350,12 +351,13 @@
 	<div
 		class="mx-auto flex max-w-3xl items-center gap-3 rounded-xl bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
 	>
-		<Input
+		<Textarea
 			bind:value={draft}
 			placeholder="Message Slopify..."
-			class="dark:bg-initial bg-initial h-9 border-0 px-3 text-sm placeholder:text-muted-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+			class="dark:bg-initial bg-initial field-sizing-content max-h-[calc(7*1.5rem+1rem)] min-h-[2.25rem] resize-none border-0 px-3 py-2 text-sm leading-6 placeholder:text-muted-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
 			disabled={isSending || isBootstrapping || !activeThread}
 			onkeydown={onComposerKeydown}
+			rows={1}
 		/>
 		<Button
 			size="icon-sm"
