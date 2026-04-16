@@ -3,11 +3,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { cn } from '$lib/utils';
+	import type { Tag } from '$lib/types';
 
 	interface ThreadListItem {
 		id: string;
 		title: string;
 		lastMessage: string;
+		tags?: Tag[];
 	}
 
 	interface Props {
@@ -16,6 +18,7 @@
 		threadId: string;
 		isCreatingThread: boolean;
 		isDeletingThread: boolean;
+		availableTags: Tag[];
 		onCreateThread: () => void;
 		onSelectThread: (id: string) => void;
 		onDeleteThread: (id: string) => void;
@@ -27,10 +30,19 @@
 		threadId,
 		isCreatingThread,
 		isDeletingThread,
+		availableTags,
 		onCreateThread,
 		onSelectThread,
 		onDeleteThread
 	}: Props = $props();
+
+	let activeTagFilter = $state<string | null>(null);
+
+	const visibleThreads = $derived(
+		activeTagFilter
+			? chatThreads.filter((t) => t.tags?.some((tag) => tag.id === activeTagFilter))
+			: chatThreads
+	);
 </script>
 
 <aside
@@ -53,9 +65,33 @@
 			<PlusIcon size={14} />
 		</Button>
 	</div>
+
+	{#if availableTags.length > 0}
+		<div class="flex flex-wrap gap-1 px-3 pb-2">
+			{#each availableTags as tag (tag.id)}
+				<button
+					type="button"
+					class={cn(
+						'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-opacity',
+						activeTagFilter === tag.id
+							? 'opacity-100 ring-2 ring-border'
+							: 'opacity-60 hover:opacity-90'
+					)}
+					style="background-color: {tag.color}; color: white;"
+					onclick={() => (activeTagFilter = activeTagFilter === tag.id ? null : tag.id)}
+					title={activeTagFilter === tag.id
+						? `Clear filter: ${tag.name}`
+						: `Filter by: ${tag.name}`}
+				>
+					{tag.name}
+				</button>
+			{/each}
+		</div>
+	{/if}
+
 	<ScrollArea.Root class="flex-1">
 		<div class="space-y-2 p-2">
-			{#each chatThreads as chat (chat.id)}
+			{#each visibleThreads as chat (chat.id)}
 				<div
 					class={cn(
 						'group flex w-full items-stretch gap-0.5 rounded-lg transition-all',
@@ -79,6 +115,17 @@
 								)}>{chat.title}</span
 							>
 						</div>
+						{#if chat.tags && chat.tags.length > 0}
+							<div class="flex flex-wrap gap-1">
+								{#each chat.tags as tag (tag.id)}
+									<span
+										class="inline-block h-2 w-2 rounded-full"
+										style="background-color: {tag.color}"
+										title={tag.name}
+									></span>
+								{/each}
+							</div>
+						{/if}
 						<p class="line-clamp-1 text-[11px] text-muted-foreground/70">{chat.lastMessage}</p>
 					</button>
 					<Button

@@ -24,10 +24,17 @@ export interface Message {
 	timestamp: string;
 }
 
+export interface Tag {
+	id: string;
+	name: string;
+	color: string;
+}
+
 export interface Thread {
 	id: string;
 	title: string;
 	model?: string;
+	tags?: Tag[];
 }
 
 export interface ChatThread extends Thread {

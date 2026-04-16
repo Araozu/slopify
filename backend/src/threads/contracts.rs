@@ -1,11 +1,19 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Tag {
+    pub id: String,
+    pub name: String,
+    pub color: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Thread {
     pub id: String,
     pub title: String,
     pub model: Option<String>,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Clone, Serialize)]

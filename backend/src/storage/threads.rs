@@ -6,6 +6,7 @@ pub struct ThreadRecord {
     pub id: Uuid,
     pub title: String,
     pub model: Option<String>,
+    pub tags_json: serde_json::Value,
 }
 
 pub async fn get_thread(
@@ -15,9 +16,19 @@ pub async fn get_thread(
 ) -> Result<ThreadRecord, sqlx::Error> {
     let row = sqlx::query_as::<_, ThreadRecord>(
         r#"
-        SELECT id, title, model
-        FROM threads
-        WHERE id = $1 AND user_id = $2
+        SELECT t.id, t.title, t.model,
+            COALESCE(
+                json_agg(
+                    json_build_object('id', tg.id::text, 'name', tg.name, 'color', tg.color)
+                    ORDER BY tg.name ASC
+                ) FILTER (WHERE tg.id IS NOT NULL),
+                '[]'::json
+            ) AS tags_json
+        FROM threads t
+        LEFT JOIN thread_tags tt ON tt.thread_id = t.id
+        LEFT JOIN tags tg ON tg.id = tt.tag_id
+        WHERE t.id = $1 AND t.user_id = $2
+        GROUP BY t.id, t.title, t.model
         "#,
     )
     .bind(thread_id)
@@ -31,10 +42,20 @@ pub async fn get_thread(
 pub async fn list_threads(pool: &PgPool, user_id: Uuid) -> Result<Vec<ThreadRecord>, sqlx::Error> {
     sqlx::query_as::<_, ThreadRecord>(
         r#"
-        SELECT id, title, model
-        FROM threads
-        WHERE user_id = $1
-        ORDER BY updated_at DESC, created_at DESC
+        SELECT t.id, t.title, t.model,
+            COALESCE(
+                json_agg(
+                    json_build_object('id', tg.id::text, 'name', tg.name, 'color', tg.color)
+                    ORDER BY tg.name ASC
+                ) FILTER (WHERE tg.id IS NOT NULL),
+                '[]'::json
+            ) AS tags_json
+        FROM threads t
+        LEFT JOIN thread_tags tt ON tt.thread_id = t.id
+        LEFT JOIN tags tg ON tg.id = tt.tag_id
+        WHERE t.user_id = $1
+        GROUP BY t.id, t.title, t.model, t.updated_at, t.created_at
+        ORDER BY t.updated_at DESC, t.created_at DESC
         "#,
     )
     .bind(user_id)
@@ -50,9 +71,13 @@ pub async fn create_thread(
 ) -> Result<ThreadRecord, sqlx::Error> {
     sqlx::query_as::<_, ThreadRecord>(
         r#"
-        INSERT INTO threads (id, user_id, title)
-        VALUES ($1, $2, $3)
-        RETURNING id, title, model
+        WITH inserted AS (
+            INSERT INTO threads (id, user_id, title)
+            VALUES ($1, $2, $3)
+            RETURNING id, title, model
+        )
+        SELECT i.id, i.title, i.model, '[]'::json AS tags_json
+        FROM inserted i
         "#,
     )
     .bind(id)
@@ -70,10 +95,24 @@ pub async fn update_thread_title(
 ) -> Result<ThreadRecord, sqlx::Error> {
     let row = sqlx::query_as::<_, ThreadRecord>(
         r#"
-        UPDATE threads
-        SET title = $1, updated_at = NOW()
-        WHERE id = $2 AND user_id = $3
-        RETURNING id, title, model
+        WITH updated AS (
+            UPDATE threads
+            SET title = $1, updated_at = NOW()
+            WHERE id = $2 AND user_id = $3
+            RETURNING id, title, model
+        )
+        SELECT u.id, u.title, u.model,
+            COALESCE(
+                json_agg(
+                    json_build_object('id', tg.id::text, 'name', tg.name, 'color', tg.color)
+                    ORDER BY tg.name ASC
+                ) FILTER (WHERE tg.id IS NOT NULL),
+                '[]'::json
+            ) AS tags_json
+        FROM updated u
+        LEFT JOIN thread_tags tt ON tt.thread_id = u.id
+        LEFT JOIN tags tg ON tg.id = tt.tag_id
+        GROUP BY u.id, u.title, u.model
         "#,
     )
     .bind(title)

@@ -7,4 +7,5 @@ pub mod openrouter_keys;
 pub mod openrouter_models;
 pub mod streams;
 pub mod system_prompts;
+pub mod tags;
 pub mod threads;
