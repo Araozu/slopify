@@ -729,7 +729,7 @@
 		forkThreadMutation.mutate({ targetThreadId: threadId, messageId });
 	}
 
-	// Default color for new tags - cycles through a preset palette stored as hex
+	// Default color for new tags - derived from existing tag count for consistency across remounts
 	const TAG_COLOR_PALETTE = [
 		'#6366f1',
 		'#ec4899',
@@ -740,12 +740,9 @@
 		'#ef4444',
 		'#14b8a6'
 	];
-	let nextColorIndex = $state(0);
 
 	function getNextTagColor(): string {
-		const color = TAG_COLOR_PALETTE[nextColorIndex % TAG_COLOR_PALETTE.length];
-		nextColorIndex = (nextColorIndex + 1) % TAG_COLOR_PALETTE.length;
-		return color;
+		return TAG_COLOR_PALETTE[availableTags.length % TAG_COLOR_PALETTE.length];
 	}
 
 	function handleAddTag(tagId: string) {

@@ -52,25 +52,21 @@ pub async fn add_tag_to_thread(
     thread_id: Uuid,
     tag_id: Uuid,
 ) -> Result<(), sqlx::Error> {
-    let exists: bool = sqlx::query_scalar::<_, bool>(
-        r#"SELECT EXISTS(SELECT 1 FROM tags WHERE id = $1 AND user_id = $2)"#,
+    // Verify both tag and thread belong to the user in a single round trip
+    let (tag_owned, thread_owned): (bool, bool) = sqlx::query_as(
+        r#"
+        SELECT
+            EXISTS(SELECT 1 FROM tags WHERE id = $1 AND user_id = $2),
+            EXISTS(SELECT 1 FROM threads WHERE id = $3 AND user_id = $2)
+        "#,
     )
     .bind(tag_id)
     .bind(user_id)
-    .fetch_one(pool)
-    .await?;
-    if !exists {
-        return Err(sqlx::Error::RowNotFound);
-    }
-
-    let thread_exists: bool = sqlx::query_scalar::<_, bool>(
-        r#"SELECT EXISTS(SELECT 1 FROM threads WHERE id = $1 AND user_id = $2)"#,
-    )
     .bind(thread_id)
-    .bind(user_id)
     .fetch_one(pool)
     .await?;
-    if !thread_exists {
+
+    if !tag_owned || !thread_owned {
         return Err(sqlx::Error::RowNotFound);
     }
 
