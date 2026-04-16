@@ -8,7 +8,7 @@ use tower_http::cors::{Any, CorsLayer};
 use crate::{
     http::handlers::{
         auth, chat, copilot_models, copilot_tokens, health, openrouter_keys, openrouter_models,
-        streams, system_prompts, threads,
+        streams, system_prompts, tags, threads,
     },
     state::AppState,
 };
@@ -115,6 +115,13 @@ fn api_router() -> Router<AppState> {
                 .layer(chat_cors_layer()),
         )
         .route("/v1/streams/hello", get(streams::hello_stream))
+        .route("/v1/tags", get(tags::list_tags).post(tags::create_tag))
+        .route("/v1/tags/{tag_id}", axum::routing::delete(tags::delete_tag))
+        .route("/v1/threads/{thread_id}/tags", post(tags::add_tag_to_thread))
+        .route(
+            "/v1/threads/{thread_id}/tags/{tag_id}",
+            axum::routing::delete(tags::remove_tag_from_thread),
+        )
 }
 
 fn chat_cors_layer() -> CorsLayer {

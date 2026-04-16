@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::{
     chat::contracts::ProviderDescriptor,
     storage::threads as thread_storage,
-    threads::contracts::{Message, MessagePart, Thread},
+    threads::contracts::{Message, MessagePart, Tag, Thread},
 };
 
 const DEFAULT_THREAD_TITLE: &str = "New thread";
@@ -197,10 +197,12 @@ pub async fn list_messages(
 }
 
 fn map_thread(record: thread_storage::ThreadRecord) -> Thread {
+    let tags: Vec<Tag> = serde_json::from_value(record.tags_json).unwrap_or_default();
     Thread {
         id: record.id.to_string(),
         title: record.title,
         model: record.model,
+        tags,
     }
 }
 

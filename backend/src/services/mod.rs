@@ -5,4 +5,5 @@ pub mod copilot_token_service;
 pub mod openrouter_key_service;
 pub mod openrouter_model_service;
 pub mod system_prompt_service;
+pub mod tag_service;
 pub mod thread_service;

@@ -18,6 +18,7 @@
 		invalidateCopilotModels
 	} from '$lib/queries/copilot-model-query';
 	import { systemPromptsQueryOptions } from '$lib/queries/system-prompt-query';
+	import { tagsQueryOptions, tagKeys } from '$lib/queries/tag-query';
 	import {
 		createThread,
 		deleteThread,
@@ -26,6 +27,7 @@
 		streamChatCompletion,
 		updateThreadTitle
 	} from '$lib/thread-client';
+	import { createTag as createTagApi, addTagToThread, removeTagFromThread } from '$lib/tag-client';
 	import { createOpenRouterModel } from '$lib/openrouter-model-client';
 	import { createCopilotModel } from '$lib/copilot-model-client';
 	import type {
@@ -34,6 +36,7 @@
 		CopilotToken,
 		ProviderCredential,
 		SystemPrompt,
+		Tag,
 		Thread,
 		OpenRouterModel,
 		CopilotModel
@@ -88,6 +91,7 @@
 	const modelsQuery = createQuery(() => openRouterModelsQueryOptions());
 	const copilotModelsQuery = createQuery(() => copilotModelsQueryOptions());
 	const systemPromptsQuery = createQuery(() => systemPromptsQueryOptions());
+	const tagsQuery = createQuery(() => tagsQueryOptions());
 
 	const openRouterKeys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
 	const copilotTokens = $derived((copilotTokensQuery.data ?? []) as CopilotToken[]);
@@ -157,15 +161,65 @@
 	}));
 
 	const createThreadMutation = createMutation(() => ({
-		mutationFn: ({ title }: { title?: string; replaceState?: boolean }) => createThread(title),
-		onSuccess: async (newThread, variables) => {
-			queryClient.setQueryData<Thread[]>(threadKeys.all, (currentThreads) => [
-				newThread,
-				...(currentThreads ?? [])
+		mutationFn: ({ title }: { title?: string; replaceState?: boolean; optimisticId?: string }) =>
+			createThread(title),
+		onMutate: async ({ replaceState, optimisticId }) => {
+			if (!optimisticId) return;
+			// Optimistically insert a placeholder thread and navigate to it
+			const placeholder: Thread = {
+				id: optimisticId,
+				title: DEFAULT_THREAD_TITLE,
+				tags: []
+			};
+			queryClient.setQueryData<Thread[]>(threadKeys.all, (current) => [
+				placeholder,
+				...(current ?? [])
 			]);
-			updateThreadMessages(newThread.id, []);
+			updateThreadMessages(optimisticId, []);
 			draft = '';
-			await gotoThread(newThread.id, variables.replaceState ?? false);
+			await gotoThread(optimisticId, replaceState ?? false);
+		},
+		onSuccess: async (newThread, variables) => {
+			const { optimisticId, replaceState } = variables;
+			if (optimisticId) {
+				// Replace placeholder with real thread
+				queryClient.setQueryData<Thread[]>(threadKeys.all, (current) =>
+					(current ?? []).map((t) => (t.id === optimisticId ? newThread : t))
+				);
+				// Move messages to real thread ID
+				const msgs = messagesByThread[optimisticId] ?? [];
+				updateThreadMessages(newThread.id, msgs);
+				messagesByThread = Object.fromEntries(
+					Object.entries(messagesByThread).filter(([key]) => key !== optimisticId)
+				);
+				// Navigate to real thread
+				await gotoThread(newThread.id, true);
+			} else {
+				queryClient.setQueryData<Thread[]>(threadKeys.all, (currentThreads) => [
+					newThread,
+					...(currentThreads ?? [])
+				]);
+				updateThreadMessages(newThread.id, []);
+				draft = '';
+				await gotoThread(newThread.id, replaceState ?? false);
+			}
+		},
+		onError: (_error, variables) => {
+			const { optimisticId } = variables;
+			if (optimisticId) {
+				// Roll back optimistic thread
+				queryClient.setQueryData<Thread[]>(threadKeys.all, (current) =>
+					(current ?? []).filter((t) => t.id !== optimisticId)
+				);
+				messagesByThread = Object.fromEntries(
+					Object.entries(messagesByThread).filter(([key]) => key !== optimisticId)
+				);
+				// Navigate back to first remaining thread if we're on the failed one
+				const remaining = (queryClient.getQueryData(threadKeys.all) as Thread[] | undefined) ?? [];
+				if (remaining.length > 0) {
+					void gotoThread(remaining[0].id, true);
+				}
+			}
 		}
 	}));
 
@@ -228,6 +282,37 @@
 		}
 	}));
 
+	const createTagMutation = createMutation(() => ({
+		mutationFn: ({ name, color }: { name: string; color: string }) => createTagApi(name, color),
+		onSuccess: (newTag) => {
+			queryClient.setQueryData<Tag[]>(tagKeys.all, (current) => [...(current ?? []), newTag]);
+		}
+	}));
+
+	const addTagToThreadMutation = createMutation(() => ({
+		mutationFn: ({ tagId }: { tagId: string }) => addTagToThread(threadId, tagId),
+		onSuccess: (_, { tagId }) => {
+			const tag = (queryClient.getQueryData<Tag[]>(tagKeys.all) ?? []).find((t) => t.id === tagId);
+			if (!tag) return;
+			queryClient.setQueryData<Thread[]>(threadKeys.all, (current) =>
+				(current ?? []).map((t) =>
+					t.id === threadId ? { ...t, tags: [...(t.tags ?? []), tag] } : t
+				)
+			);
+		}
+	}));
+
+	const removeTagFromThreadMutation = createMutation(() => ({
+		mutationFn: ({ tagId }: { tagId: string }) => removeTagFromThread(threadId, tagId),
+		onSuccess: (_, { tagId }) => {
+			queryClient.setQueryData<Thread[]>(threadKeys.all, (current) =>
+				(current ?? []).map((t) =>
+					t.id === threadId ? { ...t, tags: (t.tags ?? []).filter((tag) => tag.id !== tagId) } : t
+				)
+			);
+		}
+	}));
+
 	let threads = $derived((threadsQuery.data ?? []) as Thread[]);
 	let activeThread = $derived(threads.find((thread) => thread.id === threadId) ?? null);
 	const threadMessagesQuery = createQuery(() => ({
@@ -235,6 +320,12 @@
 		enabled: Boolean(threadId && activeThread)
 	}));
 	let messages = $derived(messagesByThread[threadId] ?? []);
+	let availableTags = $derived((tagsQuery.data ?? []) as Tag[]);
+	let isTagLoading = $derived(
+		createTagMutation.isPending ||
+			addTagToThreadMutation.isPending ||
+			removeTagFromThreadMutation.isPending
+	);
 
 	$effect(() => {
 		if (activeThread) {
@@ -300,12 +391,16 @@
 		threads.map((thread) => {
 			const threadMessages = messagesByThread[thread.id] ?? [];
 			const lastMessage = threadMessages.at(-1);
+			const pendingOptimisticId = createThreadMutation.isPending
+				? createThreadMutation.variables?.optimisticId
+				: undefined;
 
 			return {
 				...thread,
 				title: getThreadTitle(thread, threadMessages),
 				lastMessage: lastMessage ? getMessageText(lastMessage) : 'No messages yet',
-				messages: threadMessages
+				messages: threadMessages,
+				isOptimistic: thread.id === pendingOptimisticId
 			};
 		})
 	);
@@ -652,7 +747,7 @@
 			return;
 		}
 
-		createThreadMutation.mutate({ replaceState: false });
+		createThreadMutation.mutate({ replaceState: false, optimisticId: crypto.randomUUID() });
 	}
 
 	async function handleRenameThread(title: string) {
@@ -686,6 +781,42 @@
 	function handleForkFromMessage(messageId: string) {
 		if (!threadId) return;
 		forkThreadMutation.mutate({ targetThreadId: threadId, messageId });
+	}
+
+	// Default color for new tags - derived from existing tag count for consistency across remounts
+	const TAG_COLOR_PALETTE = [
+		'#6366f1',
+		'#ec4899',
+		'#f59e0b',
+		'#10b981',
+		'#3b82f6',
+		'#8b5cf6',
+		'#ef4444',
+		'#14b8a6'
+	];
+
+	function getNextTagColor(): string {
+		return TAG_COLOR_PALETTE[availableTags.length % TAG_COLOR_PALETTE.length];
+	}
+
+	function handleAddTag(tagId: string) {
+		addTagToThreadMutation.mutate({ tagId });
+	}
+
+	function handleRemoveTag(tagId: string) {
+		removeTagFromThreadMutation.mutate({ tagId });
+	}
+
+	function handleCreateTag(name: string) {
+		const color = getNextTagColor();
+		createTagMutation.mutate(
+			{ name, color },
+			{
+				onSuccess: (newTag) => {
+					addTagToThreadMutation.mutate({ tagId: newTag.id });
+				}
+			}
+		);
 	}
 
 	async function sendMessage() {
@@ -858,6 +989,7 @@
 		{threadId}
 		{isCreatingThread}
 		{isDeletingThread}
+		{availableTags}
 		onCreateThread={handleCreateThread}
 		onSelectThread={(id) => void gotoThread(id)}
 		onDeleteThread={handleDeleteThread}
@@ -872,9 +1004,14 @@
 			{isDeletingThread}
 			{isRenamingThread}
 			{isSending}
+			{availableTags}
+			{isTagLoading}
 			onRenameThread={handleRenameThread}
 			onDeleteThread={handleDeleteThread}
 			onToggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)}
+			onAddTag={handleAddTag}
+			onRemoveTag={handleRemoveTag}
+			onCreateTag={handleCreateTag}
 		/>
 
 		<ChatMessagesViewport
