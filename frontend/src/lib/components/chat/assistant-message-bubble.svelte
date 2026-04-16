@@ -31,6 +31,12 @@
 	let copied = $state(false);
 	let copyTimer: ReturnType<typeof setTimeout> | null = null;
 
+	$effect(() => {
+		return () => {
+			if (copyTimer) clearTimeout(copyTimer);
+		};
+	});
+
 	function copyText() {
 		const text = getMessageText(message);
 		navigator.clipboard.writeText(text).then(() => {

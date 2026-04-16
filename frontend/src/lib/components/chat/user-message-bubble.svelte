@@ -64,7 +64,7 @@
 	</Avatar.Root>
 	<div class="flex max-w-[85%] flex-col items-end gap-2.5">
 		{#if editing}
-			<div class="flex w-72 flex-col gap-2 sm:w-96">
+			<div class="flex w-full max-w-[85%] flex-col gap-2">
 				<Textarea
 					bind:value={editDraft}
 					class="field-sizing-content min-h-[4rem] resize-none rounded-xl text-sm leading-relaxed"

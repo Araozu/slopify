@@ -386,6 +386,11 @@
 			return renameError.message;
 		}
 
+		const deletePairError = deleteMessagePairMutation.error;
+		if (deletePairError instanceof Error) {
+			return deletePairError.message;
+		}
+
 		return '';
 	});
 	let chatThreads = $derived(

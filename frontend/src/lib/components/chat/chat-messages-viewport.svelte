@@ -30,10 +30,12 @@
 
 	let isNearBottom = $state(true);
 
+	const SCROLL_THRESHOLD = 120;
+
 	function checkNearBottom() {
 		if (!viewportRef) return;
 		const dist = viewportRef.scrollHeight - (viewportRef.scrollTop + viewportRef.clientHeight);
-		isNearBottom = dist <= 120;
+		isNearBottom = dist <= SCROLL_THRESHOLD;
 	}
 
 	function scrollToBottom() {
