@@ -33,7 +33,7 @@
 	</Avatar.Root>
 	<div class="flex w-full max-w-[85%] flex-col items-start gap-2.5">
 		<div
-			class="prose prose-sm w-full max-w-none rounded-xl bg-background/80 font-mono text-xs leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-border backdrop-blur-md prose-neutral dark:prose-invert"
+			class="assistant-prose prose prose-sm w-full max-w-none rounded-xl bg-background/80 font-mono text-xs leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-border backdrop-blur-md prose-neutral dark:prose-invert"
 		>
 			{#if hideStreamingContent}
 				<div
@@ -58,7 +58,7 @@
 					</details>
 				{/if}
 				<div
-					class="px-4 py-3 prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-li:text-foreground"
+					class="px-4 py-3 prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground"
 				>
 					<SvelteMarkdown source={getMessageText(message)} />
 				</div>
@@ -109,5 +109,21 @@
 
 	.typing-dot:nth-child(3) {
 		animation-delay: 0.3s;
+	}
+
+	.assistant-prose :global(pre) {
+		background-color: var(--muted);
+		color: var(--foreground);
+	}
+
+	.assistant-prose :global(pre code) {
+		background-color: transparent;
+		color: inherit;
+		padding: 0;
+	}
+
+	.assistant-prose :global(:not(pre) > code) {
+		background-color: var(--muted);
+		color: var(--foreground);
 	}
 </style>
