@@ -48,6 +48,7 @@
 	import { getMessageReasoning, getMessageText } from './chat-message-utils.js';
 	import StreamLogSidebar from './stream-log-sidebar.svelte';
 	import ThreadSidebar from './thread-sidebar.svelte';
+	import ConfirmDialog from './confirm-dialog.svelte';
 
 	type MessagesByThread = Record<string, Message[]>;
 
@@ -758,19 +759,31 @@
 		await renameThreadMutation.mutateAsync({ id: threadId, title });
 	}
 
+	// Confirm dialog state
+	let confirmDialogOpen = $state(false);
+	let confirmDialogPendingId = $state<string | null>(null);
+
 	async function handleDeleteThread(targetId: string) {
 		if (isDeletingThread || !targetId) {
 			return;
 		}
 
-		const confirmed = window.confirm(
-			'Delete this thread and all its messages? This cannot be undone.'
-		);
-		if (!confirmed) {
-			return;
-		}
+		confirmDialogPendingId = targetId;
+		confirmDialogOpen = true;
+	}
 
-		deleteThreadMutation.mutate(targetId);
+	function handleConfirmDeleteThread() {
+		confirmDialogOpen = false;
+		const targetId = confirmDialogPendingId;
+		confirmDialogPendingId = null;
+		if (targetId) {
+			deleteThreadMutation.mutate(targetId);
+		}
+	}
+
+	function handleCancelDeleteThread() {
+		confirmDialogOpen = false;
+		confirmDialogPendingId = null;
 	}
 
 	function handleDeleteMessagePair(messageId: string) {
@@ -781,6 +794,42 @@
 	function handleForkFromMessage(messageId: string) {
 		if (!threadId) return;
 		forkThreadMutation.mutate({ targetThreadId: threadId, messageId });
+	}
+
+	async function handleRetry(assistantMessageId: string) {
+		if (!threadId || isSending) return;
+		const currentMessages = messages;
+		const idx = currentMessages.findIndex((m) => m.id === assistantMessageId);
+		if (idx <= 0) return;
+		const userMsg = currentMessages[idx - 1];
+		if (userMsg.role !== 'user') return;
+		const userText = getMessageText(userMsg);
+		try {
+			await deleteMessagePairMutation.mutateAsync({
+				targetThreadId: threadId,
+				messageId: userMsg.id
+			});
+			draft = userText;
+			await sendMessage();
+		} catch {
+			// error surfaced by mutation
+		}
+	}
+
+	async function handleEditResend(userMessageId: string, newText: string) {
+		if (!threadId || isSending) return;
+		const trimmed = newText.trim();
+		if (!trimmed) return;
+		try {
+			await deleteMessagePairMutation.mutateAsync({
+				targetThreadId: threadId,
+				messageId: userMessageId
+			});
+			draft = trimmed;
+			await sendMessage();
+		} catch {
+			// error surfaced by mutation
+		}
 	}
 
 	// Default color for new tags - derived from existing tag count for consistency across remounts
@@ -1022,6 +1071,8 @@
 			{messages}
 			onDeletePair={handleDeleteMessagePair}
 			onFork={handleForkFromMessage}
+			onRetry={handleRetry}
+			onEditResend={handleEditResend}
 		/>
 
 		<ChatComposer
@@ -1070,3 +1121,12 @@
 
 	<StreamLogSidebar collapsed={sidebarCollapsed} />
 </div>
+
+<ConfirmDialog
+	bind:open={confirmDialogOpen}
+	title="Delete thread"
+	description="Delete this thread and all its messages? This cannot be undone."
+	confirmLabel="Delete"
+	onConfirm={handleConfirmDeleteThread}
+	onCancel={handleCancelDeleteThread}
+/>

@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { RobotIcon, GitForkIcon } from 'phosphor-svelte';
+	import {
+		RobotIcon,
+		GitForkIcon,
+		CopyIcon,
+		CheckIcon,
+		ArrowCounterClockwiseIcon
+	} from 'phosphor-svelte';
 	import SvelteMarkdown from 'svelte-markdown';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import type { Message } from '$lib/types';
@@ -13,13 +19,29 @@
 	interface Props {
 		message: Message;
 		onFork?: () => void;
+		onRetry?: () => void;
 	}
 
-	let { message, onFork }: Props = $props();
+	let { message, onFork, onRetry }: Props = $props();
 
 	let hideStreamingContent = $derived(
 		message.status === 'streaming' && !$showAssistantStreamingText
 	);
+
+	let copied = $state(false);
+	let copyTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function copyText() {
+		const text = getMessageText(message);
+		navigator.clipboard.writeText(text).then(() => {
+			copied = true;
+			if (copyTimer) clearTimeout(copyTimer);
+			copyTimer = setTimeout(() => {
+				copied = false;
+				copyTimer = null;
+			}, 2000);
+		});
+	}
 </script>
 
 <div
@@ -68,15 +90,39 @@
 			<span class="text-[9px] font-bold tracking-[0.15em] text-muted-foreground/40 uppercase">
 				{formatMessageTimestamp(message.timestamp)}
 			</span>
-			{#if onFork && message.status !== 'streaming'}
+			{#if message.status !== 'streaming'}
 				<button
-					onclick={onFork}
-					class="invisible flex h-5 w-5 items-center justify-center rounded text-muted-foreground/40 transition-colors group-hover:visible hover:text-primary"
-					title="Fork thread from this response"
-					aria-label="Fork thread from this response"
+					onclick={copyText}
+					class="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/40 transition-colors hover:text-primary md:invisible md:group-hover:visible"
+					title={copied ? 'Copied!' : 'Copy response'}
+					aria-label={copied ? 'Copied!' : 'Copy response'}
 				>
-					<GitForkIcon size={13} weight="bold" />
+					{#if copied}
+						<CheckIcon size={13} weight="bold" />
+					{:else}
+						<CopyIcon size={13} weight="bold" />
+					{/if}
 				</button>
+				{#if onRetry}
+					<button
+						onclick={onRetry}
+						class="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/40 transition-colors hover:text-primary md:invisible md:group-hover:visible"
+						title="Retry response"
+						aria-label="Retry response"
+					>
+						<ArrowCounterClockwiseIcon size={13} weight="bold" />
+					</button>
+				{/if}
+				{#if onFork}
+					<button
+						onclick={onFork}
+						class="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/40 transition-colors hover:text-primary md:invisible md:group-hover:visible"
+						title="Fork thread from this response"
+						aria-label="Fork thread from this response"
+					>
+						<GitForkIcon size={13} weight="bold" />
+					</button>
+				{/if}
 			{/if}
 		</div>
 	</div>
