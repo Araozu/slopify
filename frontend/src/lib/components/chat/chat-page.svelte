@@ -161,15 +161,65 @@
 	}));
 
 	const createThreadMutation = createMutation(() => ({
-		mutationFn: ({ title }: { title?: string; replaceState?: boolean }) => createThread(title),
-		onSuccess: async (newThread, variables) => {
-			queryClient.setQueryData<Thread[]>(threadKeys.all, (currentThreads) => [
-				newThread,
-				...(currentThreads ?? [])
+		mutationFn: ({ title }: { title?: string; replaceState?: boolean; optimisticId?: string }) =>
+			createThread(title),
+		onMutate: async ({ replaceState, optimisticId }) => {
+			if (!optimisticId) return;
+			// Optimistically insert a placeholder thread and navigate to it
+			const placeholder: Thread = {
+				id: optimisticId,
+				title: DEFAULT_THREAD_TITLE,
+				tags: []
+			};
+			queryClient.setQueryData<Thread[]>(threadKeys.all, (current) => [
+				placeholder,
+				...(current ?? [])
 			]);
-			updateThreadMessages(newThread.id, []);
+			updateThreadMessages(optimisticId, []);
 			draft = '';
-			await gotoThread(newThread.id, variables.replaceState ?? false);
+			await gotoThread(optimisticId, replaceState ?? false);
+		},
+		onSuccess: async (newThread, variables) => {
+			const { optimisticId, replaceState } = variables;
+			if (optimisticId) {
+				// Replace placeholder with real thread
+				queryClient.setQueryData<Thread[]>(threadKeys.all, (current) =>
+					(current ?? []).map((t) => (t.id === optimisticId ? newThread : t))
+				);
+				// Move messages to real thread ID
+				const msgs = messagesByThread[optimisticId] ?? [];
+				updateThreadMessages(newThread.id, msgs);
+				messagesByThread = Object.fromEntries(
+					Object.entries(messagesByThread).filter(([key]) => key !== optimisticId)
+				);
+				// Navigate to real thread
+				await gotoThread(newThread.id, true);
+			} else {
+				queryClient.setQueryData<Thread[]>(threadKeys.all, (currentThreads) => [
+					newThread,
+					...(currentThreads ?? [])
+				]);
+				updateThreadMessages(newThread.id, []);
+				draft = '';
+				await gotoThread(newThread.id, replaceState ?? false);
+			}
+		},
+		onError: (_error, variables) => {
+			const { optimisticId } = variables;
+			if (optimisticId) {
+				// Roll back optimistic thread
+				queryClient.setQueryData<Thread[]>(threadKeys.all, (current) =>
+					(current ?? []).filter((t) => t.id !== optimisticId)
+				);
+				messagesByThread = Object.fromEntries(
+					Object.entries(messagesByThread).filter(([key]) => key !== optimisticId)
+				);
+				// Navigate back to first remaining thread if we're on the failed one
+				const remaining = (queryClient.getQueryData(threadKeys.all) as Thread[] | undefined) ?? [];
+				if (remaining.length > 0) {
+					void gotoThread(remaining[0].id, true);
+				}
+			}
 		}
 	}));
 
@@ -341,12 +391,16 @@
 		threads.map((thread) => {
 			const threadMessages = messagesByThread[thread.id] ?? [];
 			const lastMessage = threadMessages.at(-1);
+			const pendingOptimisticId = createThreadMutation.isPending
+				? createThreadMutation.variables?.optimisticId
+				: undefined;
 
 			return {
 				...thread,
 				title: getThreadTitle(thread, threadMessages),
 				lastMessage: lastMessage ? getMessageText(lastMessage) : 'No messages yet',
-				messages: threadMessages
+				messages: threadMessages,
+				isOptimistic: thread.id === pendingOptimisticId
 			};
 		})
 	);
@@ -693,7 +747,7 @@
 			return;
 		}
 
-		createThreadMutation.mutate({ replaceState: false });
+		createThreadMutation.mutate({ replaceState: false, optimisticId: crypto.randomUUID() });
 	}
 
 	async function handleRenameThread(title: string) {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PlusIcon, TrashIcon } from 'phosphor-svelte';
+	import { PlusIcon, SpinnerIcon, TrashIcon } from 'phosphor-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { cn } from '$lib/utils';
@@ -10,6 +10,7 @@
 		title: string;
 		lastMessage: string;
 		tags?: Tag[];
+		isOptimistic?: boolean;
 	}
 
 	interface Props {
@@ -53,17 +54,24 @@
 	)}
 	aria-hidden={collapsed}
 >
-	<div class="flex items-center justify-between p-4">
-		<h2 class="text-[10px] font-black text-foreground/40 uppercase">Recent</h2>
+	<div class="p-3">
 		<Button
-			variant="ghost"
-			size="icon-xs"
-			class="rounded-full hover:bg-primary/10 hover:text-primary"
+			variant="default"
+			class="w-full gap-2"
 			disabled={isCreatingThread}
 			onclick={onCreateThread}
 		>
-			<PlusIcon size={14} />
+			{#if isCreatingThread}
+				<SpinnerIcon size={14} class="animate-spin" />
+				Creating…
+			{:else}
+				<PlusIcon size={14} />
+				New Thread
+			{/if}
 		</Button>
+	</div>
+	<div class="px-4 pb-1">
+		<h2 class="text-[10px] font-black text-foreground/40 uppercase">Recent</h2>
 	</div>
 
 	{#if availableTags.length > 0}
@@ -128,20 +136,22 @@
 						{/if}
 						<p class="line-clamp-1 text-[11px] text-muted-foreground/70">{chat.lastMessage}</p>
 					</button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-xs"
-						class="shrink-0 self-center text-muted-foreground hover:text-destructive"
-						disabled={isDeletingThread}
-						onclick={(event) => {
-							event.stopPropagation();
-							onDeleteThread(chat.id);
-						}}
-						title="Delete thread"
-					>
-						<TrashIcon size={14} />
-					</Button>
+					{#if !chat.isOptimistic}
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-xs"
+							class="shrink-0 self-center text-muted-foreground hover:text-destructive"
+							disabled={isDeletingThread}
+							onclick={(event) => {
+								event.stopPropagation();
+								onDeleteThread(chat.id);
+							}}
+							title="Delete thread"
+						>
+							<TrashIcon size={14} />
+						</Button>
+					{/if}
 				</div>
 			{/each}
 		</div>
