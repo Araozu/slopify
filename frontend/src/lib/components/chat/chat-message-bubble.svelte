@@ -7,13 +7,23 @@
 		message: Message;
 		onDeletePair?: (messageId: string) => void;
 		onFork?: (messageId: string) => void;
+		onRetry?: (messageId: string) => void;
+		onEditResend?: (messageId: string, newText: string) => void;
 	}
 
-	let { message, onDeletePair, onFork }: Props = $props();
+	let { message, onDeletePair, onFork, onRetry, onEditResend }: Props = $props();
 </script>
 
 {#if message.role === 'user'}
-	<UserMessageBubble {message} onDelete={() => onDeletePair?.(message.id)} />
+	<UserMessageBubble
+		{message}
+		onDelete={() => onDeletePair?.(message.id)}
+		onEditResend={(newText) => onEditResend?.(message.id, newText)}
+	/>
 {:else}
-	<AssistantMessageBubble {message} onFork={() => onFork?.(message.id)} />
+	<AssistantMessageBubble
+		{message}
+		onFork={() => onFork?.(message.id)}
+		onRetry={() => onRetry?.(message.id)}
+	/>
 {/if}
