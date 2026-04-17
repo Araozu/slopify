@@ -27,6 +27,13 @@ use crate::{
 };
 use std::{convert::Infallible, time::Duration};
 
+const STREAM_FLUSH_INTERVAL_MS: u64 = 500;
+const STREAM_FLUSH_DELTA_COUNT: usize = 48;
+/// Buffer size for the SSE event channel between the background streaming
+/// task and the client-facing response.  Sized to absorb small delta bursts
+/// without back-pressuring the provider stream.
+const SSE_CHANNEL_BUFFER: usize = 64;
+
 #[derive(Deserialize)]
 pub struct PromptRequest {
     pub prompt: String,
@@ -189,13 +196,20 @@ pub async fn complete_prompt(
         }
     };
 
-    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(64);
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(SSE_CHANNEL_BUFFER);
 
     // Send the initial message_started event before spawning the background task.
     let started_event =
         build_sse_event(ClientChatEvent::MessageStarted { message: started.clone() });
     if tx.send(Ok(started_event)).await.is_err() {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        return build_error_sse_response(ClientChatEvent::MessageFailed {
+            message_id: started.id.clone(),
+            error: ClientChatError {
+                code: "internal_error".to_string(),
+                message: "failed to initialise event channel".to_string(),
+                retryable: true,
+            },
+        });
     }
 
     let message_id = started.id.clone();
@@ -212,9 +226,9 @@ pub async fn complete_prompt(
         let mut resolved_model = requested_model.clone();
         let mut pending_deltas = 0usize;
         let mut last_flush = tokio::time::Instant::now();
-        let flush_every = Duration::from_millis(500);
-        let flush_delta_count = 48usize;
-        let mut client_connected = true;
+        let flush_every = Duration::from_millis(STREAM_FLUSH_INTERVAL_MS);
+        let flush_delta_count = STREAM_FLUSH_DELTA_COUNT;
+        let mut channel_open = true;
 
         tokio::pin!(stream);
         while let Some(event) = stream.next().await {
@@ -222,13 +236,13 @@ pub async fn complete_prompt(
                 Ok(ChatServiceStreamEvent::TextDelta(delta)) => {
                     text.push_str(&delta);
                     pending_deltas += 1;
-                    if client_connected {
+                    if channel_open {
                         let sse = build_sse_event(ClientChatEvent::TextDelta {
                             message_id: message_id.clone(),
                             delta,
                         });
                         if tx.send(Ok(sse)).await.is_err() {
-                            client_connected = false;
+                            channel_open = false;
                             tracing::info!(message_id = %message_id, "client disconnected, continuing for persistence");
                         }
                     }
@@ -236,13 +250,13 @@ pub async fn complete_prompt(
                 Ok(ChatServiceStreamEvent::ReasoningDelta(delta)) => {
                     reasoning.push_str(&delta);
                     pending_deltas += 1;
-                    if client_connected {
+                    if channel_open {
                         let sse = build_sse_event(ClientChatEvent::ReasoningDelta {
                             message_id: message_id.clone(),
                             delta,
                         });
                         if tx.send(Ok(sse)).await.is_err() {
-                            client_connected = false;
+                            channel_open = false;
                             tracing::info!(message_id = %message_id, "client disconnected, continuing for persistence");
                         }
                     }
@@ -274,7 +288,7 @@ pub async fn complete_prompt(
                         )
                         .await;
                     }
-                    if client_connected {
+                    if channel_open {
                         let sse =
                             build_sse_event(ClientChatEvent::MessageFailed {
                                 message_id: message_id.clone(),
@@ -354,7 +368,7 @@ pub async fn complete_prompt(
             .await;
         }
 
-        if client_connected {
+        if channel_open {
             let sse = build_sse_event(ClientChatEvent::MessageCompleted {
                 message: completed_message,
             });
