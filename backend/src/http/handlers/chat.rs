@@ -7,9 +7,9 @@ use axum::{
         sse::{Event, KeepAlive, Sse},
     },
 };
-use async_stream::stream;
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
+use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
 
 use crate::{
@@ -26,6 +26,13 @@ use crate::{
     state::AppState,
 };
 use std::{convert::Infallible, time::Duration};
+
+const STREAM_FLUSH_INTERVAL_MS: u64 = 500;
+const STREAM_FLUSH_DELTA_COUNT: usize = 48;
+/// Buffer size for the SSE event channel between the background streaming
+/// task and the client-facing response.  Sized to absorb small delta bursts
+/// without back-pressuring the provider stream.
+const SSE_CHANNEL_BUFFER: usize = 64;
 
 #[derive(Deserialize)]
 pub struct PromptRequest {
@@ -164,7 +171,54 @@ pub async fn complete_prompt(
     let requested_model = payload.model.clone();
     let system_prompt_for_stream = system_prompt_content.clone();
 
-    let sse_stream = stream! {
+    let started = match build_initial_message(
+        &db_pool,
+        user_id,
+        thread_id,
+        &requested_model,
+        &provider_display_name,
+        provider_endpoint.as_deref(),
+        system_prompt_for_stream.as_deref(),
+    )
+    .await
+    {
+        Ok(message) => message,
+        Err(error) => {
+            let event = ClientChatEvent::MessageFailed {
+                message_id: format!("msg_{}", Uuid::new_v4()),
+                error: ClientChatError {
+                    code: "storage_error".to_string(),
+                    message: error.to_string(),
+                    retryable: false,
+                },
+            };
+            return build_error_sse_response(event);
+        }
+    };
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(SSE_CHANNEL_BUFFER);
+
+    // Send the initial message_started event before spawning the background task.
+    let started_event =
+        build_sse_event(ClientChatEvent::MessageStarted { message: started.clone() });
+    if tx.send(Ok(started_event)).await.is_err() {
+        return build_error_sse_response(ClientChatEvent::MessageFailed {
+            message_id: started.id.clone(),
+            error: ClientChatError {
+                code: "internal_error".to_string(),
+                message: "failed to initialise event channel".to_string(),
+                retryable: true,
+            },
+        });
+    }
+
+    let message_id = started.id.clone();
+    let persisted_message_id = Uuid::parse_str(&started.id).ok();
+
+    // Spawn a background task that processes the provider stream independently.
+    // If the client disconnects (tx.send fails), the task continues consuming
+    // the provider stream and persisting to the database.
+    tokio::spawn(async move {
         let mut text = String::new();
         let mut reasoning = String::new();
         let mut finish_reason: Option<String> = None;
@@ -172,36 +226,9 @@ pub async fn complete_prompt(
         let mut resolved_model = requested_model.clone();
         let mut pending_deltas = 0usize;
         let mut last_flush = tokio::time::Instant::now();
-        let flush_every = Duration::from_millis(500);
-        let flush_delta_count = 48usize;
-
-        let started = match build_initial_message(
-            &db_pool,
-            user_id,
-            thread_id,
-            &requested_model,
-            &provider_display_name,
-            provider_endpoint.as_deref(),
-            system_prompt_for_stream.as_deref(),
-        ).await {
-            Ok(message) => message,
-            Err(error) => {
-                let event = ClientChatEvent::MessageFailed {
-                    message_id: format!("msg_{}", Uuid::new_v4()),
-                    error: ClientChatError {
-                        code: "storage_error".to_string(),
-                        message: error.to_string(),
-                        retryable: false,
-                    },
-                };
-                yield Ok::<Event, Infallible>(build_sse_event(event));
-                return;
-            }
-        };
-
-        let message_id = started.id.clone();
-        let persisted_message_id = Uuid::parse_str(&started.id).ok();
-        yield Ok::<Event, Infallible>(build_sse_event(ClientChatEvent::MessageStarted { message: started.clone() }));
+        let flush_every = Duration::from_millis(STREAM_FLUSH_INTERVAL_MS);
+        let flush_delta_count = STREAM_FLUSH_DELTA_COUNT;
+        let mut channel_open = true;
 
         tokio::pin!(stream);
         while let Some(event) = stream.next().await {
@@ -209,18 +236,30 @@ pub async fn complete_prompt(
                 Ok(ChatServiceStreamEvent::TextDelta(delta)) => {
                     text.push_str(&delta);
                     pending_deltas += 1;
-                    yield Ok::<Event, Infallible>(build_sse_event(ClientChatEvent::TextDelta {
-                        message_id: message_id.clone(),
-                        delta,
-                    }));
+                    if channel_open {
+                        let sse = build_sse_event(ClientChatEvent::TextDelta {
+                            message_id: message_id.clone(),
+                            delta,
+                        });
+                        if tx.send(Ok(sse)).await.is_err() {
+                            channel_open = false;
+                            tracing::info!(message_id = %message_id, "client disconnected, continuing for persistence");
+                        }
+                    }
                 }
                 Ok(ChatServiceStreamEvent::ReasoningDelta(delta)) => {
                     reasoning.push_str(&delta);
                     pending_deltas += 1;
-                    yield Ok::<Event, Infallible>(build_sse_event(ClientChatEvent::ReasoningDelta {
-                        message_id: message_id.clone(),
-                        delta,
-                    }));
+                    if channel_open {
+                        let sse = build_sse_event(ClientChatEvent::ReasoningDelta {
+                            message_id: message_id.clone(),
+                            delta,
+                        });
+                        if tx.send(Ok(sse)).await.is_err() {
+                            channel_open = false;
+                            tracing::info!(message_id = %message_id, "client disconnected, continuing for persistence");
+                        }
+                    }
                 }
                 Ok(ChatServiceStreamEvent::Completed {
                     model,
@@ -233,7 +272,9 @@ pub async fn complete_prompt(
                     break;
                 }
                 Err(error) => {
-                    if let (Some(thread_id), Some(message_id_uuid)) = (thread_id, persisted_message_id) {
+                    if let (Some(thread_id), Some(message_id_uuid)) =
+                        (thread_id, persisted_message_id)
+                    {
                         let _ = persist_snapshot(
                             &db_pool,
                             user_id,
@@ -247,21 +288,27 @@ pub async fn complete_prompt(
                         )
                         .await;
                     }
-                    yield Ok::<Event, Infallible>(build_sse_event(ClientChatEvent::MessageFailed {
-                        message_id: message_id.clone(),
-                        error: ClientChatError {
-                            code: "provider_error".to_string(),
-                            message: error.to_string(),
-                            retryable: false,
-                        },
-                    }));
+                    if channel_open {
+                        let sse =
+                            build_sse_event(ClientChatEvent::MessageFailed {
+                                message_id: message_id.clone(),
+                                error: ClientChatError {
+                                    code: "provider_error".to_string(),
+                                    message: error.to_string(),
+                                    retryable: false,
+                                },
+                            });
+                        let _ = tx.send(Ok(sse)).await;
+                    }
                     return;
                 }
             }
 
             let elapsed = last_flush.elapsed();
             if pending_deltas >= flush_delta_count || elapsed >= flush_every {
-                if let (Some(thread_id), Some(message_id_uuid)) = (thread_id, persisted_message_id) {
+                if let (Some(thread_id), Some(message_id_uuid)) =
+                    (thread_id, persisted_message_id)
+                {
                     let _ = persist_snapshot(
                         &db_pool,
                         user_id,
@@ -312,14 +359,24 @@ pub async fn complete_prompt(
                 vendor_metadata.clone(),
             )
             .await;
-            let _ = thread_service::update_thread_model(&db_pool, user_id, thread_id, &resolved_model).await;
+            let _ = thread_service::update_thread_model(
+                &db_pool,
+                user_id,
+                thread_id,
+                &resolved_model,
+            )
+            .await;
         }
 
-        yield Ok::<Event, Infallible>(build_sse_event(ClientChatEvent::MessageCompleted {
-            message: completed_message,
-        }));
-    };
+        if channel_open {
+            let sse = build_sse_event(ClientChatEvent::MessageCompleted {
+                message: completed_message,
+            });
+            let _ = tx.send(Ok(sse)).await;
+        }
+    });
 
+    let sse_stream = ReceiverStream::new(rx);
     Sse::new(sse_stream)
         .keep_alive(KeepAlive::new().interval(Duration::from_secs(10)).text("ping"))
         .into_response()
@@ -536,4 +593,14 @@ fn build_sse_event(payload: ClientChatEvent) -> Event {
 
     let data = serde_json::to_string(&ChatEventEnvelope { payload }).expect("chat stream payload is valid");
     Event::default().event(event_name).data(data)
+}
+
+/// Build a single-event SSE response for early error reporting (before the
+/// background streaming task is spawned).
+fn build_error_sse_response(event: ClientChatEvent) -> Response {
+    let sse_event = build_sse_event(event);
+    let stream = futures_util::stream::once(async move { Ok::<Event, Infallible>(sse_event) });
+    Sse::new(stream)
+        .keep_alive(KeepAlive::new().interval(Duration::from_secs(10)).text("ping"))
+        .into_response()
 }

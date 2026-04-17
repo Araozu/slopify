@@ -434,7 +434,20 @@
 			return;
 		}
 
-		const fetchedMessages = ((threadMessagesQuery.data ?? []) as Message[]).map(normalizeMessage);
+		const currentlySending = untrack(() => isSending);
+		const fetchedMessages = ((threadMessagesQuery.data ?? []) as Message[]).map((m) => {
+			const normalized = normalizeMessage(m);
+			// If we are not actively streaming and a message has status "streaming",
+			// it was left behind by a previous interrupted session. Resolve it based
+			// on whether it has content.
+			if (!currentlySending && normalized.status === 'streaming') {
+				const hasContent = (normalized.parts ?? []).some(
+					(p) => p.kind === 'text' && p.text.length > 0
+				);
+				return { ...normalized, status: hasContent ? ('completed' as const) : ('failed' as const) };
+			}
+			return normalized;
+		});
 		const currentMessagesByThread = untrack(() => messagesByThread);
 		const currentMessages = currentMessagesByThread[threadId];
 		if (currentMessages === fetchedMessages) {
