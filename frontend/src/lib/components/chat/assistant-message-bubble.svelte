@@ -52,14 +52,17 @@
 
 <div
 	id={message.id}
-	class="group flex w-full animate-in flex-row gap-5 transition-all duration-500 fade-in slide-in-from-bottom-2"
+	class="group flex w-full animate-in flex-row transition-all duration-500 fade-in slide-in-from-bottom-2"
 >
-	<Avatar.Root title="Clanker" class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background">
-		<Avatar.Fallback class="border border-primary/20 bg-primary/10 text-primary">
-			<RobotIcon size={18} />
-		</Avatar.Fallback>
-	</Avatar.Root>
-	<div class="flex w-full max-w-[85%] flex-col items-start gap-2.5">
+	<div class="relative flex w-full max-w-[85%] flex-col items-start gap-2.5">
+		<Avatar.Root
+			title="Clanker"
+			class="absolute -top-2 -left-2 z-10 h-5 w-5 shadow-sm ring-2 ring-background"
+		>
+			<Avatar.Fallback class="border border-primary/20 bg-primary/10 text-primary">
+				<RobotIcon size={12} />
+			</Avatar.Fallback>
+		</Avatar.Root>
 		<div
 			class="assistant-prose prose prose-sm w-full max-w-none rounded-xl bg-background/80 font-mono text-xs leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-border backdrop-blur-md prose-neutral dark:prose-invert"
 		>
