@@ -55,14 +55,17 @@
 
 <div
 	id={message.id}
-	class="group flex w-full animate-in flex-row-reverse gap-5 transition-all duration-500 fade-in slide-in-from-bottom-2"
+	class="group flex w-full animate-in justify-end transition-all duration-500 fade-in slide-in-from-bottom-2"
 >
-	<Avatar.Root title="Human" class="mt-1 h-9 w-9 shrink-0 shadow-sm ring-2 ring-background">
-		<Avatar.Fallback class="border border-border bg-secondary text-secondary-foreground">
-			<UserIcon size={18} />
-		</Avatar.Fallback>
-	</Avatar.Root>
-	<div class="flex max-w-[85%] flex-col items-end gap-2.5">
+	<div class="relative flex max-w-[85%] flex-col items-end gap-2.5">
+		<Avatar.Root
+			title="Human"
+			class="absolute -top-2 -right-2 z-10 h-5 w-5 shadow-sm ring-2 ring-background"
+		>
+			<Avatar.Fallback class="border border-border bg-secondary text-secondary-foreground">
+				<UserIcon size={12} />
+			</Avatar.Fallback>
+		</Avatar.Root>
 		{#if editing}
 			<div class="flex w-full max-w-[85%] flex-col gap-2">
 				<Textarea

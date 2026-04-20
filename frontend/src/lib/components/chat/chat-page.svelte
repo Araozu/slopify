@@ -1071,40 +1071,22 @@
 			{isDeletingThread}
 			{isRenamingThread}
 			{isSending}
+			isBootstrapping={isComposerBootstrapping}
 			{availableTags}
 			{isTagLoading}
-			onRenameThread={handleRenameThread}
-			onDeleteThread={handleDeleteThread}
-			onToggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)}
-			onAddTag={handleAddTag}
-			onRemoveTag={handleRemoveTag}
-			onCreateTag={handleCreateTag}
-		/>
-
-		<ChatMessagesViewport
-			bind:viewportRef
-			{loadError}
-			{isBootstrapping}
-			{isLoadingMessages}
-			{messages}
-			onDeletePair={handleDeleteMessagePair}
-			onFork={handleForkFromMessage}
-			onRetry={handleRetry}
-			onEditResend={handleEditResend}
-		/>
-
-		<ChatComposer
-			bind:draft
-			bind:model
 			{credentials}
 			{selectedCredential}
 			{systemPrompts}
 			{selectedSystemPromptId}
 			savedModels={activeSavedModels}
 			{canSaveModel}
-			{isSending}
-			isBootstrapping={isComposerBootstrapping}
-			{activeThread}
+			bind:model
+			onRenameThread={handleRenameThread}
+			onDeleteThread={handleDeleteThread}
+			onToggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)}
+			onAddTag={handleAddTag}
+			onRemoveTag={handleRemoveTag}
+			onCreateTag={handleCreateTag}
 			onSelectCredential={(id) => {
 				selectedCredentialId = id;
 				threadPrefs = {
@@ -1132,6 +1114,27 @@
 					createModelMutation.mutate(modelId);
 				}
 			}}
+		/>
+
+		<ChatMessagesViewport
+			bind:viewportRef
+			{loadError}
+			{isBootstrapping}
+			{isLoadingMessages}
+			{messages}
+			onDeletePair={handleDeleteMessagePair}
+			onFork={handleForkFromMessage}
+			onRetry={handleRetry}
+			onEditResend={handleEditResend}
+		/>
+
+		<ChatComposer
+			bind:draft
+			bind:model
+			{selectedCredential}
+			{isSending}
+			isBootstrapping={isComposerBootstrapping}
+			{activeThread}
 			onSend={sendMessage}
 			onComposerKeydown={handleComposerKeydown}
 		/>
