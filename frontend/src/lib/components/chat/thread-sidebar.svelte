@@ -134,7 +134,6 @@
 								{/each}
 							</div>
 						{/if}
-						<p class="line-clamp-1 text-[11px] text-muted-foreground/70">{chat.lastMessage}</p>
 					</button>
 					{#if !chat.isOptimistic}
 						<Button
