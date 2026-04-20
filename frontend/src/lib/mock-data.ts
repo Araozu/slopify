@@ -4,7 +4,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '1',
 		title: 'The skincare routine',
-		lastMessage: 'The double cleanse is key!',
 		messages: [
 			{
 				id: 'm1',
@@ -37,7 +36,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '2',
 		title: 'TS vs JS debate',
-		lastMessage: 'Types are just better for the soul.',
 		messages: [
 			{
 				id: 'm5',
@@ -57,7 +55,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '3',
 		title: 'Latte art tips',
-		lastMessage: 'Wait, is it oat milk or almond?',
 		messages: [
 			{
 				id: 'm7',
@@ -90,7 +87,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '4',
 		title: 'CSS naming wars',
-		lastMessage: 'BEM is the only way, bestie.',
 		messages: [
 			{
 				id: 'm11',
@@ -130,7 +126,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '5',
 		title: 'State management drama',
-		lastMessage: 'Zustand is just... prettier Redux.',
 		messages: [
 			{
 				id: 'm16',
@@ -177,7 +172,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '6',
 		title: 'Git commit struggles',
-		lastMessage: 'feat: add coffee dependency',
 		messages: [
 			{
 				id: 'm22',
@@ -229,7 +223,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '7',
 		title: 'API design struggles',
-		lastMessage: 'REST is classic, but have you tried gRPC?',
 		messages: [
 			{
 				id: 'm29',
@@ -281,7 +274,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '8',
 		title: 'Debugging at midnight',
-		lastMessage: 'Have you tried turning it off and on again?',
 		messages: [
 			{
 				id: 'm36',
@@ -333,7 +325,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '9',
 		title: 'React vs Vue debate',
-		lastMessage: 'At the end of the day, they all compile to JS anyway.',
 		messages: [
 			{
 				id: 'm43',
@@ -385,7 +376,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '10',
 		title: 'Package.json mysteries',
-		lastMessage: 'devDependencies vs dependencies... help?',
 		messages: [
 			{
 				id: 'm50',
@@ -437,7 +427,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '11',
 		title: 'The 10-step skincare journey',
-		lastMessage: 'Retinol is not for the faint of heart.',
 		messages: [
 			{
 				id: 'm57',
@@ -613,7 +602,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '12',
 		title: 'Closet full, nothing to wear',
-		lastMessage: 'Capsule wardrobe sounds kind of chic actually.',
 		messages: [
 			{
 				id: 'm83',
@@ -776,7 +764,6 @@ export const MOCK_CHATS: ChatThread[] = [
 	{
 		id: '13',
 		title: 'Gloss vs the world',
-		lastMessage: 'Gloss is having a full comeback arc.',
 		messages: [
 			{
 				id: 'm107',

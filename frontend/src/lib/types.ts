@@ -38,7 +38,6 @@ export interface Thread {
 }
 
 export interface ChatThread extends Thread {
-	lastMessage: string;
 	messages: Message[];
 }
 

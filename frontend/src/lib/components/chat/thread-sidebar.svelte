@@ -8,7 +8,6 @@
 	interface ThreadListItem {
 		id: string;
 		title: string;
-		lastMessage: string;
 		tags?: Tag[];
 		isOptimistic?: boolean;
 	}
@@ -134,7 +133,6 @@
 								{/each}
 							</div>
 						{/if}
-						<p class="line-clamp-1 text-[11px] text-muted-foreground/70">{chat.lastMessage}</p>
 					</button>
 					{#if !chat.isOptimistic}
 						<Button

@@ -396,7 +396,6 @@
 	let chatThreads = $derived(
 		threads.map((thread) => {
 			const threadMessages = messagesByThread[thread.id] ?? [];
-			const lastMessage = threadMessages.at(-1);
 			const pendingOptimisticId = createThreadMutation.isPending
 				? createThreadMutation.variables?.optimisticId
 				: undefined;
@@ -404,7 +403,6 @@
 			return {
 				...thread,
 				title: getThreadTitle(thread, threadMessages),
-				lastMessage: lastMessage ? getMessageText(lastMessage) : 'No messages yet',
 				messages: threadMessages,
 				isOptimistic: thread.id === pendingOptimisticId
 			};
