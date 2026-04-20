@@ -8,7 +8,6 @@
 	interface ThreadListItem {
 		id: string;
 		title: string;
-		lastMessage: string;
 		tags?: Tag[];
 		isOptimistic?: boolean;
 	}
