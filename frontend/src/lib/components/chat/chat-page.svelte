@@ -51,6 +51,7 @@
 	import ThreadSidebar from './thread-sidebar.svelte';
 	import ConfirmDialog from './confirm-dialog.svelte';
 	import { threadDefaults } from '$lib/stores/thread-defaults';
+	import { getDraft, setDraft } from '$lib/stores/thread-drafts';
 
 	type MessagesByThread = Record<string, Message[]>;
 
@@ -68,6 +69,20 @@
 	let messagesByThread = $state<MessagesByThread>({});
 	let draft = $state('');
 	let model = $state(DEFAULT_MODEL);
+
+	// Load the saved draft whenever the active thread changes.
+	$effect(() => {
+		const id = threadId;
+		draft = untrack(() => getDraft(id));
+	});
+
+	// Keep the in-memory store in sync as the user types.
+	$effect(() => {
+		setDraft(
+			untrack(() => threadId),
+			draft
+		);
+	});
 	let isSending = $state(false);
 	let hasRequestedInitialThread = $state(false);
 	let initializedThreadIds = $state(new Set<string>());
