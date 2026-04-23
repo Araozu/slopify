@@ -14,8 +14,13 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger>
 		{#snippet child({ props })}
-			<Button.Root variant="outline" size="icon" {...props}>
-				<PaletteIcon class="h-[1.2rem] w-[1.2rem]" />
+			<Button.Root
+				variant="ghost"
+				size="icon"
+				class="h-6 w-6 text-muted-foreground hover:text-foreground"
+				{...props}
+			>
+				<PaletteIcon size={14} />
 				<span class="sr-only">Select color scheme</span>
 			</Button.Root>
 		{/snippet}

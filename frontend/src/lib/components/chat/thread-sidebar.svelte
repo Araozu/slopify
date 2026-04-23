@@ -96,7 +96,7 @@
 		</div>
 	{/if}
 
-	<ScrollArea.Root class="flex-1">
+	<ScrollArea.Root class="min-h-0 flex-1">
 		<div class="space-y-2 p-2">
 			{#each visibleThreads as chat (chat.id)}
 				<div

@@ -38,12 +38,12 @@
 
 <footer class="p-4 md:p-6">
 	<div
-		class="mx-auto flex {maxWidthClass} items-center gap-3 rounded-xl bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
+		class="mx-auto flex {maxWidthClass} items-end gap-3 rounded-xl bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
 	>
 		<Textarea
 			bind:value={draft}
 			placeholder="Message Slopify..."
-			class="dark:bg-initial bg-initial field-sizing-content max-h-[calc(7*1.5rem+1rem)] min-h-[2.25rem] resize-none border-0 px-3 py-2 text-sm leading-6 placeholder:text-muted-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+			class="dark:bg-initial bg-initial field-sizing-content max-h-[calc(7*1.5rem+1rem)] min-h-[2.25rem] resize-none border-0 px-3 py-2 text-sm leading-6 shadow-none placeholder:text-muted-foreground/40 focus-visible:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
 			disabled={isSending || isBootstrapping || !activeThread}
 			onkeydown={onComposerKeydown}
 			rows={1}
