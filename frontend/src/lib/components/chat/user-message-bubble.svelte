@@ -12,6 +12,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import type { Message } from '$lib/types';
 	import { formatMessageTimestamp, getMessageText } from './chat-message-utils.js';
+	import { messageFontSize } from '$lib/stores/ui-preferences';
 
 	interface Props {
 		message: Message;
@@ -23,6 +24,10 @@
 
 	let editing = $state(false);
 	let editDraft = $state('');
+
+	const fontSizeClass = $derived(
+		$messageFontSize === 'lg' ? 'text-base' : $messageFontSize === 'md' ? 'text-sm' : 'text-xs'
+	);
 
 	function beginEdit() {
 		editDraft = getMessageText(message);
@@ -84,7 +89,7 @@
 			</div>
 		{:else}
 			<div
-				class="rounded-xl bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-primary/20"
+				class="rounded-xl bg-primary px-4 py-3 leading-relaxed text-primary-foreground shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-primary/20 {fontSizeClass}"
 			>
 				{getMessageText(message)}
 			</div>

@@ -23,6 +23,8 @@
 	import { theme } from '$lib/stores/theme';
 	import { showAssistantStreamingText } from '$lib/stores/streaming-preference';
 	import { threadDefaults } from '$lib/stores/thread-defaults';
+	import { messageFontSize, contentWidth } from '$lib/stores/ui-preferences';
+	import UiSettingsPanel from '$lib/components/chat/ui-settings-panel.svelte';
 
 	let { children, data } = $props<{
 		children: () => unknown;
@@ -39,6 +41,8 @@
 		theme.init();
 		showAssistantStreamingText.init();
 		threadDefaults.init();
+		messageFontSize.init();
+		contentWidth.init();
 	});
 
 	async function handleLogout() {
@@ -86,6 +90,7 @@
 			<span class="flex items-center gap-2">
 				<ThemeToggle />
 				<ModeToggle />
+				<UiSettingsPanel />
 			</span>
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger

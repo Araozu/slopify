@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import type { ProviderCredential, Thread } from '$lib/types';
+	import { contentWidth } from '$lib/stores/ui-preferences';
 
 	interface Props {
 		draft?: string;
@@ -25,11 +26,19 @@
 		onSend,
 		onComposerKeydown
 	}: Props = $props();
+
+	const maxWidthClass = $derived(
+		$contentWidth === 'full'
+			? 'max-w-none'
+			: $contentWidth === 'wide'
+				? 'max-w-[60rem]'
+				: 'max-w-3xl'
+	);
 </script>
 
 <footer class="p-4 md:p-6">
 	<div
-		class="mx-auto flex max-w-3xl items-center gap-3 rounded-xl bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
+		class="mx-auto flex {maxWidthClass} items-center gap-3 rounded-xl bg-muted/40 p-2.5 shadow-inner ring-1 ring-border/50 transition-all focus-within:bg-background/60 focus-within:ring-primary/30"
 	>
 		<Textarea
 			bind:value={draft}

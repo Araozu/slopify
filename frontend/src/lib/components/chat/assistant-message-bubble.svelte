@@ -10,6 +10,7 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import type { Message } from '$lib/types';
 	import { showAssistantStreamingText } from '$lib/stores/streaming-preference';
+	import { messageFontSize } from '$lib/stores/ui-preferences';
 	import {
 		formatMessageTimestamp,
 		getMessageReasoning,
@@ -26,6 +27,10 @@
 
 	let hideStreamingContent = $derived(
 		message.status === 'streaming' && !$showAssistantStreamingText
+	);
+
+	const fontSizeClass = $derived(
+		$messageFontSize === 'lg' ? 'text-base' : $messageFontSize === 'md' ? 'text-sm' : 'text-xs'
 	);
 
 	let copied = $state(false);
@@ -64,7 +69,7 @@
 			</Avatar.Fallback>
 		</Avatar.Root>
 		<div
-			class="assistant-prose prose prose-sm w-full max-w-none rounded-xl bg-background/80 font-mono text-xs leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-border backdrop-blur-md prose-neutral dark:prose-invert"
+			class="assistant-prose prose w-full max-w-none rounded-xl bg-background/80 font-mono leading-relaxed shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)] ring-1 ring-border backdrop-blur-md prose-neutral dark:prose-invert {fontSizeClass}"
 		>
 			{#if hideStreamingContent}
 				<div
