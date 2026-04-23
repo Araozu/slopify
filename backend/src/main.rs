@@ -14,6 +14,7 @@ mod state;
 mod storage;
 mod system_prompts;
 mod threads;
+mod zen_keys;
 
 use config::AppConfig;
 

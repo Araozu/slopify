@@ -1,16 +1,19 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { KeyIcon, CubeIcon, GithubLogoIcon, ArrowRightIcon } from 'phosphor-svelte';
+	import { KeyIcon, CubeIcon, GithubLogoIcon, ArrowRightIcon, SparkleIcon } from 'phosphor-svelte';
 	import { createQuery } from '@tanstack/svelte-query';
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
 	import { copilotTokensQueryOptions } from '$lib/queries/copilot-token-query';
-	import type { OpenRouterApiKey, CopilotToken } from '$lib/types';
+	import { zenKeysQueryOptions } from '$lib/queries/zen-key-query';
+	import type { OpenRouterApiKey, CopilotToken, ZenApiKey } from '$lib/types';
 
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
 	const copilotQuery = createQuery(() => copilotTokensQueryOptions());
+	const zenQuery = createQuery(() => zenKeysQueryOptions());
 
 	const openRouterKeys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
 	const copilotTokens = $derived((copilotQuery.data ?? []) as CopilotToken[]);
+	const zenKeys = $derived((zenQuery.data ?? []) as ZenApiKey[]);
 </script>
 
 <div class="flex h-[calc(100vh-2rem)] min-h-0 w-full flex-col bg-background">
@@ -94,6 +97,34 @@
 							class="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase ring-1 ring-border/50"
 						>
 							{copilotTokens.length} token{copilotTokens.length !== 1 ? 's' : ''}
+						</span>
+					</div>
+				</a>
+
+				<a
+					href={resolve('/(main)/settings/providers/zen')}
+					class="group rounded-xl border bg-card/50 p-5 shadow-sm backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-card/70"
+				>
+					<div class="flex items-start justify-between">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/5 text-primary/60 transition-colors group-hover:bg-primary/10 group-hover:text-primary"
+						>
+							<SparkleIcon size={20} weight="fill" />
+						</div>
+						<ArrowRightIcon
+							size={14}
+							class="text-muted-foreground/0 transition-all group-hover:text-muted-foreground/40"
+						/>
+					</div>
+					<h3 class="mt-4 text-sm font-bold tracking-tight">OpenCode Zen</h3>
+					<p class="mt-1 text-xs text-muted-foreground/60">
+						Multi-model gateway: Claude, Qwen, Kimi, GLM, MiniMax and more.
+					</p>
+					<div class="mt-4">
+						<span
+							class="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase ring-1 ring-border/50"
+						>
+							{zenKeys.length} key{zenKeys.length !== 1 ? 's' : ''}
 						</span>
 					</div>
 				</a>

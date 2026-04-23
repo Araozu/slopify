@@ -1,7 +1,9 @@
 pub mod adapter;
 pub mod anthropic;
+pub mod anthropic_stream;
 pub mod github_copilot;
 pub mod openai_compat_stream;
 pub mod openai_compatible;
+pub mod opencode_zen;
 pub mod registry;
 pub mod sse_utils;

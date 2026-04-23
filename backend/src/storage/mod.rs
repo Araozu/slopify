@@ -7,3 +7,4 @@ pub mod system_prompts;
 pub mod tags;
 pub mod threads;
 pub mod users;
+pub mod zen_keys;

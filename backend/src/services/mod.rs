@@ -7,3 +7,4 @@ pub mod openrouter_model_service;
 pub mod system_prompt_service;
 pub mod tag_service;
 pub mod thread_service;
+pub mod zen_key_service;

@@ -9,3 +9,4 @@ pub mod streams;
 pub mod system_prompts;
 pub mod tags;
 pub mod threads;
+pub mod zen_keys;

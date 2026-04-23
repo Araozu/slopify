@@ -75,7 +75,13 @@ export interface CopilotToken {
 	githubToken: string;
 }
 
-export type ProviderSlug = 'openrouter' | 'github-copilot';
+export interface ZenApiKey {
+	id: string;
+	name: string;
+	apiKey: string;
+}
+
+export type ProviderSlug = 'openrouter' | 'github-copilot' | 'opencode-zen';
 
 export interface ProviderCredential {
 	id: string;
