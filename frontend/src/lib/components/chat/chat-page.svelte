@@ -42,6 +42,7 @@
 		CopilotModel
 	} from '$lib/types';
 	import { tick, untrack, onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import ChatComposer from './chat-composer.svelte';
 	import ChatHeader from './chat-header.svelte';
 	import ChatMessagesViewport from './chat-messages-viewport.svelte';
@@ -49,6 +50,7 @@
 	import StreamLogSidebar from './stream-log-sidebar.svelte';
 	import ThreadSidebar from './thread-sidebar.svelte';
 	import ConfirmDialog from './confirm-dialog.svelte';
+	import { threadDefaults } from '$lib/stores/thread-defaults';
 
 	type MessagesByThread = Record<string, Message[]>;
 
@@ -485,28 +487,48 @@
 			let nextCredentialId: string | null = null;
 			let nextSystemPromptId: string | null = null;
 
-			const lastWithProvider = currentMessages.findLast((m) => m.provider != null);
-			if (lastWithProvider?.provider?.model) {
-				model = lastWithProvider.provider.model;
-			}
-			if (lastWithProvider?.provider?.provider) {
-				const matchingCredential = currentCredentials.find(
-					(c) => c.provider === lastWithProvider.provider!.provider
-				);
-				if (matchingCredential) {
-					nextCredentialId = matchingCredential.id;
+			if (currentMessages.length === 0) {
+				// New/empty thread — apply stored defaults when they still exist
+				const defaults = get(threadDefaults);
+				if (
+					defaults.credentialId &&
+					currentCredentials.some((c) => c.id === defaults.credentialId)
+				) {
+					nextCredentialId = defaults.credentialId;
 				}
-			}
-
-			const lastWithSysPrompt = currentMessages.findLast((m) => m.system_prompt !== undefined);
-			if (lastWithSysPrompt) {
-				if (lastWithSysPrompt.system_prompt) {
-					const matchingPrompt = currentSystemPrompts.find(
-						(p) => p.content === lastWithSysPrompt.system_prompt
+				if (
+					defaults.systemPromptId &&
+					currentSystemPrompts.some((p) => p.id === defaults.systemPromptId)
+				) {
+					nextSystemPromptId = defaults.systemPromptId;
+				}
+				if (defaults.model) {
+					model = defaults.model;
+				}
+			} else {
+				const lastWithProvider = currentMessages.findLast((m) => m.provider != null);
+				if (lastWithProvider?.provider?.model) {
+					model = lastWithProvider.provider.model;
+				}
+				if (lastWithProvider?.provider?.provider) {
+					const matchingCredential = currentCredentials.find(
+						(c) => c.provider === lastWithProvider.provider!.provider
 					);
-					nextSystemPromptId = matchingPrompt?.id ?? null;
-				} else {
-					nextSystemPromptId = null;
+					if (matchingCredential) {
+						nextCredentialId = matchingCredential.id;
+					}
+				}
+
+				const lastWithSysPrompt = currentMessages.findLast((m) => m.system_prompt !== undefined);
+				if (lastWithSysPrompt) {
+					if (lastWithSysPrompt.system_prompt) {
+						const matchingPrompt = currentSystemPrompts.find(
+							(p) => p.content === lastWithSysPrompt.system_prompt
+						);
+						nextSystemPromptId = matchingPrompt?.id ?? null;
+					} else {
+						nextSystemPromptId = null;
+					}
 				}
 			}
 

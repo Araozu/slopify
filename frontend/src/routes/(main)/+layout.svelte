@@ -9,7 +9,8 @@
 		GearIcon,
 		ClockCounterClockwiseIcon,
 		ChatCircleTextIcon,
-		CubeIcon
+		CubeIcon,
+		SlidersHorizontalIcon
 	} from 'phosphor-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -21,6 +22,7 @@
 	import { onMount } from 'svelte';
 	import { theme } from '$lib/stores/theme';
 	import { showAssistantStreamingText } from '$lib/stores/streaming-preference';
+	import { threadDefaults } from '$lib/stores/thread-defaults';
 
 	let { children, data } = $props<{
 		children: () => unknown;
@@ -36,6 +38,7 @@
 	onMount(() => {
 		theme.init();
 		showAssistantStreamingText.init();
+		threadDefaults.init();
 	});
 
 	async function handleLogout() {
@@ -70,6 +73,12 @@
 				class="hidden rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10 sm:block"
 			>
 				Prompts
+			</a>
+			<a
+				href={resolve('/(main)/settings/defaults')}
+				class="hidden rounded-md px-2 py-0.5 text-foreground/90 transition-colors hover:bg-foreground/10 sm:block"
+			>
+				Defaults
 			</a>
 		</nav>
 
@@ -109,6 +118,10 @@
 						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/settings/system-prompts'))}>
 							<ChatCircleTextIcon class="mr-2 h-4 w-4" />
 							<span>System Prompts</span>
+						</DropdownMenu.Item>
+						<DropdownMenu.Item onclick={() => goto(resolve('/(main)/settings/defaults'))}>
+							<SlidersHorizontalIcon class="mr-2 h-4 w-4" />
+							<span>Defaults</span>
 						</DropdownMenu.Item>
 						<DropdownMenu.Item>
 							<GearIcon class="mr-2 h-4 w-4" />
