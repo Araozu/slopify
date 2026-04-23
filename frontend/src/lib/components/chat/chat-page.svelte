@@ -1175,7 +1175,7 @@
 		/>
 	</main>
 
-	<StreamLogSidebar collapsed={sidebarCollapsed} />
+	<StreamLogSidebar collapsed={sidebarCollapsed} {messages} {viewportRef} />
 </div>
 
 <ConfirmDialog
