@@ -95,7 +95,9 @@
 			{:else}
 				<div class="mx-auto w-full {maxWidthClass} space-y-10 px-4 py-6 md:px-6 md:py-10">
 					{#each messages as message (message.id)}
-						<ChatMessageBubble {message} {onDeletePair} {onFork} {onRetry} {onEditResend} />
+						<div id="msg-{message.id}">
+							<ChatMessageBubble {message} {onDeletePair} {onFork} {onRetry} {onEditResend} />
+						</div>
 					{/each}
 				</div>
 			{/if}
