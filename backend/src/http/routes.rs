@@ -7,8 +7,8 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
     http::handlers::{
-        auth, chat, copilot_models, copilot_tokens, health, openrouter_keys, openrouter_models,
-        streams, system_prompts, tags, threads, zen_keys,
+        auth, chat, copilot_models, copilot_tokens, health, openai_tokens, openrouter_keys,
+        openrouter_models, streams, system_prompts, tags, threads, zen_keys,
     },
     state::AppState,
 };
@@ -66,6 +66,22 @@ fn api_router() -> Router<AppState> {
         .route(
             "/v1/copilot/device-code/poll",
             post(copilot_tokens::poll_device_code),
+        )
+        .route(
+            "/v1/openai-tokens",
+            get(openai_tokens::list_openai_tokens).post(openai_tokens::create_openai_token),
+        )
+        .route(
+            "/v1/openai-tokens/{token_id}",
+            axum::routing::delete(openai_tokens::delete_openai_token),
+        )
+        .route(
+            "/v1/openai/device-code",
+            post(openai_tokens::initiate_device_code),
+        )
+        .route(
+            "/v1/openai/device-code/poll",
+            post(openai_tokens::poll_device_code),
         )
         .route(
             "/v1/system-prompts",

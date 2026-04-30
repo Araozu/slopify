@@ -9,6 +9,7 @@
 	} from '$lib/queries/thread-query';
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
 	import { copilotTokensQueryOptions } from '$lib/queries/copilot-token-query';
+	import { openAiTokensQueryOptions } from '$lib/queries/openai-token-query';
 	import {
 		openRouterModelsQueryOptions,
 		invalidateOpenRouterModels
@@ -34,6 +35,7 @@
 		Message,
 		OpenRouterApiKey,
 		CopilotToken,
+		OpenAiToken,
 		ProviderCredential,
 		SystemPrompt,
 		Tag,
@@ -106,6 +108,7 @@
 	const threadsQuery = createQuery(() => threadsQueryOptions());
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
 	const copilotTokensQuery = createQuery(() => copilotTokensQueryOptions());
+	const openAiTokensQuery = createQuery(() => openAiTokensQueryOptions());
 	const modelsQuery = createQuery(() => openRouterModelsQueryOptions());
 	const copilotModelsQuery = createQuery(() => copilotModelsQueryOptions());
 	const systemPromptsQuery = createQuery(() => systemPromptsQueryOptions());
@@ -113,6 +116,7 @@
 
 	const openRouterKeys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
 	const copilotTokens = $derived((copilotTokensQuery.data ?? []) as CopilotToken[]);
+	const openAiTokens = $derived((openAiTokensQuery.data ?? []) as OpenAiToken[]);
 
 	const credentials = $derived<ProviderCredential[]>([
 		...openRouterKeys.map(
@@ -130,6 +134,14 @@
 				provider: 'github-copilot',
 				token: t.githubToken
 			})
+		),
+		...openAiTokens.map(
+			(t): ProviderCredential => ({
+				id: t.id,
+				name: t.name,
+				provider: 'openai',
+				token: t.token
+			})
 		)
 	]);
 
@@ -141,7 +153,10 @@
 		credentials.find((c) => c.id === selectedCredentialId) ?? credentials[0] ?? null
 	);
 
-	const canSaveModel = $derived(selectedCredential !== null);
+	const canSaveModel = $derived.by(() => {
+		const provider = selectedCredential?.provider;
+		return provider === 'openrouter' || provider === 'github-copilot';
+	});
 
 	const systemPrompts = $derived((systemPromptsQuery.data ?? []) as SystemPrompt[]);
 	let selectedSystemPromptId = $state<string | null>(null);
@@ -375,6 +390,7 @@
 		isBootstrapping ||
 			!keysQuery.isSuccess ||
 			!copilotTokensQuery.isSuccess ||
+			!openAiTokensQuery.isSuccess ||
 			!systemPromptsQuery.isSuccess
 	);
 	let loadError = $derived.by(() => {
@@ -486,6 +502,7 @@
 			!threadMessagesQuery.isSuccess ||
 			!keysQuery.isSuccess ||
 			!copilotTokensQuery.isSuccess ||
+			!openAiTokensQuery.isSuccess ||
 			!systemPromptsQuery.isSuccess
 		) {
 			return;
@@ -1145,7 +1162,7 @@
 			onSaveModel={(modelId) => {
 				if (selectedCredential?.provider === 'github-copilot') {
 					createCopilotModelMutation.mutate(modelId);
-				} else {
+				} else if (selectedCredential?.provider === 'openrouter') {
 					createModelMutation.mutate(modelId);
 				}
 			}}

@@ -6,6 +6,7 @@ mod copilot_models;
 mod copilot_tokens;
 mod db;
 mod http;
+mod openai_tokens;
 mod openrouter_keys;
 mod openrouter_models;
 mod providers;

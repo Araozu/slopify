@@ -4,15 +4,18 @@
 	import { createQuery } from '@tanstack/svelte-query';
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
 	import { copilotTokensQueryOptions } from '$lib/queries/copilot-token-query';
+	import { openAiTokensQueryOptions } from '$lib/queries/openai-token-query';
 	import { zenKeysQueryOptions } from '$lib/queries/zen-key-query';
-	import type { OpenRouterApiKey, CopilotToken, ZenApiKey } from '$lib/types';
+	import type { OpenRouterApiKey, CopilotToken, OpenAiToken, ZenApiKey } from '$lib/types';
 
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
 	const copilotQuery = createQuery(() => copilotTokensQueryOptions());
+	const openAiQuery = createQuery(() => openAiTokensQueryOptions());
 	const zenQuery = createQuery(() => zenKeysQueryOptions());
 
 	const openRouterKeys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
 	const copilotTokens = $derived((copilotQuery.data ?? []) as CopilotToken[]);
+	const openAiTokens = $derived((openAiQuery.data ?? []) as OpenAiToken[]);
 	const zenKeys = $derived((zenQuery.data ?? []) as ZenApiKey[]);
 </script>
 
@@ -97,6 +100,34 @@
 							class="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase ring-1 ring-border/50"
 						>
 							{copilotTokens.length} token{copilotTokens.length !== 1 ? 's' : ''}
+						</span>
+					</div>
+				</a>
+
+				<a
+					href={resolve('/(main)/settings/providers/openai')}
+					class="group rounded-xl border bg-card/50 p-5 shadow-sm backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-card/70"
+				>
+					<div class="flex items-start justify-between">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/5 text-primary/60 transition-colors group-hover:bg-primary/10 group-hover:text-primary"
+						>
+							<SparkleIcon size={20} weight="fill" />
+						</div>
+						<ArrowRightIcon
+							size={14}
+							class="text-muted-foreground/0 transition-all group-hover:text-muted-foreground/40"
+						/>
+					</div>
+					<h3 class="mt-4 text-sm font-bold tracking-tight">OpenAI</h3>
+					<p class="mt-1 text-xs text-muted-foreground/60">
+						Connect with an API key or use OpenAI device sign-in.
+					</p>
+					<div class="mt-4">
+						<span
+							class="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase ring-1 ring-border/50"
+						>
+							{openAiTokens.length} token{openAiTokens.length !== 1 ? 's' : ''}
 						</span>
 					</div>
 				</a>

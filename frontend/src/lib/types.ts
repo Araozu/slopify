@@ -75,13 +75,22 @@ export interface CopilotToken {
 	githubToken: string;
 }
 
+export type OpenAiAuthType = 'api_key' | 'oauth_refresh_token';
+
+export interface OpenAiToken {
+	id: string;
+	name: string;
+	authType: OpenAiAuthType;
+	token: string;
+}
+
 export interface ZenApiKey {
 	id: string;
 	name: string;
 	apiKey: string;
 }
 
-export type ProviderSlug = 'openrouter' | 'github-copilot' | 'opencode-zen';
+export type ProviderSlug = 'openrouter' | 'github-copilot' | 'opencode-zen' | 'openai';
 
 export interface ProviderCredential {
 	id: string;

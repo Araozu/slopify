@@ -9,7 +9,8 @@ use crate::{
     config::AppConfig,
     providers::{
         anthropic::AnthropicAdapter, github_copilot::GithubCopilotAdapter,
-        openai_compatible::OpenRouterAdapter, opencode_zen::OpenCodeZenAdapter,
+        openai::OpenAiAdapter, openai_compatible::OpenRouterAdapter,
+        opencode_zen::OpenCodeZenAdapter,
         registry::ProviderRegistry,
     },
     state::AppState,
@@ -24,6 +25,7 @@ pub fn build_router(config: &AppConfig, db_pool: PgPool) -> Router {
     registry.register(Arc::new(AnthropicAdapter::new()));
     registry.register(Arc::new(GithubCopilotAdapter::new()));
     registry.register(Arc::new(OpenCodeZenAdapter::new()));
+    registry.register(Arc::new(OpenAiAdapter::new()));
 
     crate::http::routes::router()
         .fallback_service(ServeDir::new(static_dir).not_found_service(ServeFile::new(index_file)))

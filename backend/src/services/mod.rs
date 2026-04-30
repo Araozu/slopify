@@ -2,6 +2,7 @@ pub mod auth_service;
 pub mod chat_service;
 pub mod copilot_model_service;
 pub mod copilot_token_service;
+pub mod openai_token_service;
 pub mod openrouter_key_service;
 pub mod openrouter_model_service;
 pub mod system_prompt_service;
