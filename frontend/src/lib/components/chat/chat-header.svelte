@@ -147,12 +147,14 @@
 	const PROVIDER_LABELS: Record<string, string> = {
 		openrouter: 'OR',
 		'github-copilot': 'Copilot',
-		openai: 'OpenAI'
+		openai: 'OpenAI',
+		'opencode-zen': 'Zen'
 	};
 
 	const openRouterCredentials = $derived(credentials.filter((c) => c.provider === 'openrouter'));
 	const copilotCredentials = $derived(credentials.filter((c) => c.provider === 'github-copilot'));
 	const openAiCredentials = $derived(credentials.filter((c) => c.provider === 'openai'));
+	const zenCredentials = $derived(credentials.filter((c) => c.provider === 'opencode-zen'));
 
 	let modelDropdownOpen = $state(false);
 	let modelSearchRef: HTMLInputElement | null = $state(null);
@@ -381,6 +383,37 @@
 											<span
 												class="rounded bg-muted px-1 py-0.5 text-[8px] font-black tracking-widest text-muted-foreground/50 uppercase"
 												>OpenAI</span
+											>
+											<span class="text-xs font-bold">{cred.name}</span>
+										</div>
+										<span class="font-mono text-[9px] text-muted-foreground/50"
+											>{cred.token.slice(0, 8)}••••</span
+										>
+									</div>
+									{#if selectedCredential?.id === cred.id}
+										<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
+									{/if}
+								</DropdownMenu.Item>
+							{/each}
+						{/if}
+						{#if zenCredentials.length > 0}
+							{#if openRouterCredentials.length > 0 || copilotCredentials.length > 0 || openAiCredentials.length > 0}
+								<DropdownMenu.Separator />
+							{/if}
+							<DropdownMenu.Label
+								class="text-[9px] font-black tracking-widest text-muted-foreground/30 uppercase"
+								>OpenCode Zen</DropdownMenu.Label
+							>
+							{#each zenCredentials as cred (cred.id)}
+								<DropdownMenu.Item
+									class="flex items-center justify-between rounded-md py-2"
+									onclick={() => onSelectCredential(cred.id)}
+								>
+									<div class="flex flex-col gap-0.5">
+										<div class="flex items-center gap-1.5">
+											<span
+												class="rounded bg-muted px-1 py-0.5 text-[8px] font-black tracking-widest text-muted-foreground/50 uppercase"
+												>Zen</span
 											>
 											<span class="text-xs font-bold">{cred.name}</span>
 										</div>

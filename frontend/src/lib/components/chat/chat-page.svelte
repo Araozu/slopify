@@ -10,6 +10,7 @@
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
 	import { copilotTokensQueryOptions } from '$lib/queries/copilot-token-query';
 	import { openAiTokensQueryOptions } from '$lib/queries/openai-token-query';
+	import { zenKeysQueryOptions } from '$lib/queries/zen-key-query';
 	import {
 		openRouterModelsQueryOptions,
 		invalidateOpenRouterModels
@@ -36,6 +37,7 @@
 		OpenRouterApiKey,
 		CopilotToken,
 		OpenAiToken,
+		ZenApiKey,
 		ProviderCredential,
 		SystemPrompt,
 		Tag,
@@ -109,6 +111,7 @@
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
 	const copilotTokensQuery = createQuery(() => copilotTokensQueryOptions());
 	const openAiTokensQuery = createQuery(() => openAiTokensQueryOptions());
+	const zenKeysQuery = createQuery(() => zenKeysQueryOptions());
 	const modelsQuery = createQuery(() => openRouterModelsQueryOptions());
 	const copilotModelsQuery = createQuery(() => copilotModelsQueryOptions());
 	const systemPromptsQuery = createQuery(() => systemPromptsQueryOptions());
@@ -117,6 +120,7 @@
 	const openRouterKeys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
 	const copilotTokens = $derived((copilotTokensQuery.data ?? []) as CopilotToken[]);
 	const openAiTokens = $derived((openAiTokensQuery.data ?? []) as OpenAiToken[]);
+	const zenKeys = $derived((zenKeysQuery.data ?? []) as ZenApiKey[]);
 
 	const credentials = $derived<ProviderCredential[]>([
 		...openRouterKeys.map(
@@ -141,6 +145,14 @@
 				name: t.name,
 				provider: 'openai',
 				token: t.token
+			})
+		),
+		...zenKeys.map(
+			(k): ProviderCredential => ({
+				id: k.id,
+				name: k.name,
+				provider: 'opencode-zen',
+				token: k.apiKey
 			})
 		)
 	]);
@@ -391,6 +403,7 @@
 			!keysQuery.isSuccess ||
 			!copilotTokensQuery.isSuccess ||
 			!openAiTokensQuery.isSuccess ||
+			!zenKeysQuery.isSuccess ||
 			!systemPromptsQuery.isSuccess
 	);
 	let loadError = $derived.by(() => {

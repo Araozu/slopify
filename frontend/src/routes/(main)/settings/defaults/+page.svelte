@@ -14,6 +14,7 @@
 	import { openRouterKeysQueryOptions } from '$lib/queries/openrouter-key-query';
 	import { copilotTokensQueryOptions } from '$lib/queries/copilot-token-query';
 	import { openAiTokensQueryOptions } from '$lib/queries/openai-token-query';
+	import { zenKeysQueryOptions } from '$lib/queries/zen-key-query';
 	import { systemPromptsQueryOptions } from '$lib/queries/system-prompt-query';
 	import { openRouterModelsQueryOptions } from '$lib/queries/openrouter-model-query';
 	import { copilotModelsQueryOptions } from '$lib/queries/copilot-model-query';
@@ -22,6 +23,7 @@
 		OpenRouterApiKey,
 		CopilotToken,
 		OpenAiToken,
+		ZenApiKey,
 		SystemPrompt,
 		OpenRouterModel,
 		CopilotModel,
@@ -31,6 +33,7 @@
 	const keysQuery = createQuery(() => openRouterKeysQueryOptions());
 	const copilotTokensQuery = createQuery(() => copilotTokensQueryOptions());
 	const openAiTokensQuery = createQuery(() => openAiTokensQueryOptions());
+	const zenKeysQuery = createQuery(() => zenKeysQueryOptions());
 	const systemPromptsQuery = createQuery(() => systemPromptsQueryOptions());
 	const openRouterModelsQuery = createQuery(() => openRouterModelsQueryOptions());
 	const copilotModelsQuery = createQuery(() => copilotModelsQueryOptions());
@@ -38,6 +41,7 @@
 	const openRouterKeys = $derived((keysQuery.data ?? []) as OpenRouterApiKey[]);
 	const copilotTokens = $derived((copilotTokensQuery.data ?? []) as CopilotToken[]);
 	const openAiTokens = $derived((openAiTokensQuery.data ?? []) as OpenAiToken[]);
+	const zenKeys = $derived((zenKeysQuery.data ?? []) as ZenApiKey[]);
 
 	const credentials = $derived<ProviderCredential[]>([
 		...openRouterKeys.map(
@@ -63,6 +67,14 @@
 				provider: 'openai',
 				token: t.token
 			})
+		),
+		...zenKeys.map(
+			(k): ProviderCredential => ({
+				id: k.id,
+				name: k.name,
+				provider: 'opencode-zen',
+				token: k.apiKey
+			})
 		)
 	]);
 
@@ -77,12 +89,14 @@
 	const PROVIDER_LABELS: Record<string, string> = {
 		openrouter: 'OR',
 		'github-copilot': 'Copilot',
-		openai: 'OpenAI'
+		openai: 'OpenAI',
+		'opencode-zen': 'Zen'
 	};
 
 	const openRouterCredentials = $derived(credentials.filter((c) => c.provider === 'openrouter'));
 	const copilotCredentials = $derived(credentials.filter((c) => c.provider === 'github-copilot'));
 	const openAiCredentials = $derived(credentials.filter((c) => c.provider === 'openai'));
+	const zenCredentials = $derived(credentials.filter((c) => c.provider === 'opencode-zen'));
 
 	let modelInput = $state($threadDefaults.model);
 
@@ -151,7 +165,7 @@
 					</div>
 
 					<div class="rounded-xl border bg-card/50 p-5 shadow-sm backdrop-blur-sm">
-						{#if keysQuery.isPending || copilotTokensQuery.isPending || openAiTokensQuery.isPending}
+						{#if keysQuery.isPending || copilotTokensQuery.isPending || openAiTokensQuery.isPending || zenKeysQuery.isPending}
 							<p
 								class="text-center text-[11px] font-medium tracking-widest text-muted-foreground/40 uppercase"
 							>
@@ -263,6 +277,38 @@
 													class="rounded bg-muted px-1 py-0.5 text-[8px] font-black tracking-widest text-muted-foreground/50 uppercase"
 												>
 													OpenAI
+												</span>
+												<span class="text-xs font-bold">{cred.name}</span>
+												<span class="font-mono text-[9px] text-muted-foreground/50"
+													>{cred.token.slice(0, 8)}••••</span
+												>
+											</div>
+											{#if $threadDefaults.credentialId === cred.id}
+												<CheckIcon size={14} weight="bold" class="shrink-0 text-primary" />
+											{/if}
+										</button>
+									{/each}
+								{/if}
+
+								{#if zenCredentials.length > 0}
+									<p
+										class="px-3 pt-2 text-[9px] font-black tracking-widest text-muted-foreground/30 uppercase"
+									>
+										OpenCode Zen
+									</p>
+									{#each zenCredentials as cred (cred.id)}
+										<button
+											class="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50 {$threadDefaults.credentialId ===
+											cred.id
+												? 'bg-primary/5 ring-1 ring-primary/20'
+												: ''}"
+											onclick={() => threadDefaults.setCredentialId(cred.id)}
+										>
+											<div class="flex items-center gap-2">
+												<span
+													class="rounded bg-muted px-1 py-0.5 text-[8px] font-black tracking-widest text-muted-foreground/50 uppercase"
+												>
+													Zen
 												</span>
 												<span class="text-xs font-bold">{cred.name}</span>
 												<span class="font-mono text-[9px] text-muted-foreground/50"
