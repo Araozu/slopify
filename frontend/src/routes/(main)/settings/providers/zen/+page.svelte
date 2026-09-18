@@ -94,11 +94,13 @@
 					</div>
 					<div class="rounded-xl border bg-muted/30 p-4 shadow-inner ring-1 ring-border/50">
 						<p class="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase">
-							Claude models
+							Claude & Qwen models
 						</p>
 						<p class="mt-2 text-xs leading-relaxed text-foreground/60">
-							Claude models are routed through the Anthropic Messages endpoint. Use the
-							<span class="font-mono">claude-*</span> model prefix.
+							Claude (<span class="font-mono">claude-*</span>) and Qwen (<span class="font-mono"
+								>qwen*</span
+							>) models are routed through the Anthropic Messages endpoint. A leading
+							<span class="font-mono">opencode/</span> prefix is stripped automatically.
 						</p>
 					</div>
 				</div>

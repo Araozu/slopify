@@ -144,6 +144,7 @@ export async function streamChatCompletion(
 			authorization: `Bearer ${apiKey}`,
 			'content-type': 'application/json'
 		},
+		credentials: 'include',
 		body: JSON.stringify(body)
 	});
 

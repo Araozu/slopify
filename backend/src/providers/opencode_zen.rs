@@ -72,12 +72,34 @@ impl ProviderAdapter for OpenCodeZenAdapter {
         model: &str,
         api_key: &str,
     ) -> Result<BoxStream<'static, Result<ProviderStreamEvent, ProviderError>>, ProviderError> {
-        if model.starts_with("claude-") {
-            stream_anthropic(client, messages, model, api_key, self.name()).await
+        // Zen model IDs are bare (e.g. `claude-sonnet-4-5`), but users coming
+        // from OpenCode config may type the `opencode/<id>` form. Strip it so
+        // routing and the wire payload use the canonical ID.
+        let wire_model = strip_opencode_prefix(model);
+        if is_anthropic_wire_model(wire_model) {
+            stream_anthropic(client, messages, wire_model, api_key, self.name()).await
         } else {
-            stream_chat_completions(client, messages, model, api_key, self.name()).await
+            stream_chat_completions(client, messages, wire_model, api_key, self.name()).await
         }
     }
+}
+
+/// Strip a leading `opencode/` config prefix (`opencode/claude-x` → `claude-x`).
+/// Matching is case-insensitive; the remainder keeps its original case.
+fn strip_opencode_prefix(model: &str) -> &str {
+    const PREFIX_LEN: usize = "opencode/".len();
+    if model.len() >= PREFIX_LEN && model[..PREFIX_LEN].eq_ignore_ascii_case("opencode/") {
+        &model[PREFIX_LEN..]
+    } else {
+        model
+    }
+}
+
+/// Zen exposes Claude and Qwen models through the Anthropic Messages wire
+/// format (`/zen/v1/messages`); everything else uses OpenAI Chat Completions.
+fn is_anthropic_wire_model(model: &str) -> bool {
+    let normalized = model.to_lowercase();
+    normalized.starts_with("claude-") || normalized.starts_with("qwen")
 }
 
 async fn stream_anthropic(
@@ -104,12 +126,25 @@ async fn stream_anthropic(
         Some(system_parts.join("\n\n"))
     };
 
-    let api_messages: Vec<AnthropicRequestMessage<'_>> = messages
+    let mut merged: Vec<(&'static str, String)> = Vec::new();
+    for m in messages
         .iter()
         .filter(|m| !matches!(m.role, ChatRole::System))
-        .map(|m| AnthropicRequestMessage {
-            role: chat_role_to_anthropic(&m.role),
-            content: &m.content,
+    {
+        let role = chat_role_to_anthropic(&m.role);
+        match merged.last_mut() {
+            Some((last_role, last_content)) if *last_role == role => {
+                last_content.push_str("\n\n");
+                last_content.push_str(&m.content);
+            }
+            _ => merged.push((role, m.content.clone())),
+        }
+    }
+    let api_messages: Vec<AnthropicRequestMessage<'_>> = merged
+        .iter()
+        .map(|(role, content)| AnthropicRequestMessage {
+            role,
+            content: content.as_str(),
         })
         .collect();
 
@@ -130,9 +165,15 @@ async fn stream_anthropic(
         .json(&payload)
         .send()
         .await
-        .map_err(ProviderError::Http)?
-        .error_for_status()
         .map_err(ProviderError::Http)?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        return Err(ProviderError::Other(
+            format!("Zen Messages request failed ({status}): {body}").into(),
+        ));
+    }
 
     Ok(parse_anthropic_stream(
         response,
@@ -170,9 +211,15 @@ async fn stream_chat_completions(
         .json(&payload)
         .send()
         .await
-        .map_err(ProviderError::Http)?
-        .error_for_status()
         .map_err(ProviderError::Http)?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        return Err(ProviderError::Other(
+            format!("Zen Chat Completions request failed ({status}): {body}").into(),
+        ));
+    }
 
     Ok(parse_openai_stream(
         response,
@@ -194,6 +241,8 @@ fn chat_role_to_openai(role: &ChatRole) -> &'static str {
         ChatRole::User => "user",
         ChatRole::Assistant => "assistant",
         ChatRole::System => "system",
-        ChatRole::Tool => "tool",
+        // Chat Completions tool messages require tool_call_id, which this app
+        // never produces; downgrade to user text instead of sending a 400.
+        ChatRole::Tool => "user",
     }
 }

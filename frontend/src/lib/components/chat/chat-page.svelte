@@ -516,6 +516,7 @@
 			!keysQuery.isSuccess ||
 			!copilotTokensQuery.isSuccess ||
 			!openAiTokensQuery.isSuccess ||
+			!zenKeysQuery.isSuccess ||
 			!systemPromptsQuery.isSuccess
 		) {
 			return;
