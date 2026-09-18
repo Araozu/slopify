@@ -11,6 +11,7 @@
 	import { copilotTokensQueryOptions } from '$lib/queries/copilot-token-query';
 	import { openAiTokensQueryOptions } from '$lib/queries/openai-token-query';
 	import { zenKeysQueryOptions } from '$lib/queries/zen-key-query';
+	import { goKeysQueryOptions } from '$lib/queries/go-key-query';
 	import {
 		openRouterModelsQueryOptions,
 		invalidateOpenRouterModels
@@ -38,6 +39,7 @@
 		CopilotToken,
 		OpenAiToken,
 		ZenApiKey,
+		GoApiKey,
 		ProviderCredential,
 		SystemPrompt,
 		Tag,
@@ -112,6 +114,7 @@
 	const copilotTokensQuery = createQuery(() => copilotTokensQueryOptions());
 	const openAiTokensQuery = createQuery(() => openAiTokensQueryOptions());
 	const zenKeysQuery = createQuery(() => zenKeysQueryOptions());
+	const goKeysQuery = createQuery(() => goKeysQueryOptions());
 	const modelsQuery = createQuery(() => openRouterModelsQueryOptions());
 	const copilotModelsQuery = createQuery(() => copilotModelsQueryOptions());
 	const systemPromptsQuery = createQuery(() => systemPromptsQueryOptions());
@@ -121,40 +124,39 @@
 	const copilotTokens = $derived((copilotTokensQuery.data ?? []) as CopilotToken[]);
 	const openAiTokens = $derived((openAiTokensQuery.data ?? []) as OpenAiToken[]);
 	const zenKeys = $derived((zenKeysQuery.data ?? []) as ZenApiKey[]);
+	const goKeys = $derived((goKeysQuery.data ?? []) as GoApiKey[]);
 
 	const credentials = $derived<ProviderCredential[]>([
-		...openRouterKeys.map(
-			(k): ProviderCredential => ({
-				id: k.id,
-				name: k.name,
-				provider: 'openrouter',
-				token: k.apiKey
-			})
-		),
-		...copilotTokens.map(
-			(t): ProviderCredential => ({
-				id: t.id,
-				name: t.name,
-				provider: 'github-copilot',
-				token: t.githubToken
-			})
-		),
-		...openAiTokens.map(
-			(t): ProviderCredential => ({
-				id: t.id,
-				name: t.name,
-				provider: 'openai',
-				token: t.token
-			})
-		),
-		...zenKeys.map(
-			(k): ProviderCredential => ({
-				id: k.id,
-				name: k.name,
-				provider: 'opencode-zen',
-				token: k.apiKey
-			})
-		)
+		...openRouterKeys.map((k): ProviderCredential => ({
+			id: k.id,
+			name: k.name,
+			provider: 'openrouter',
+			token: k.apiKey
+		})),
+		...copilotTokens.map((t): ProviderCredential => ({
+			id: t.id,
+			name: t.name,
+			provider: 'github-copilot',
+			token: t.githubToken
+		})),
+		...openAiTokens.map((t): ProviderCredential => ({
+			id: t.id,
+			name: t.name,
+			provider: 'openai',
+			token: t.token
+		})),
+		...zenKeys.map((k): ProviderCredential => ({
+			id: k.id,
+			name: k.name,
+			provider: 'opencode-zen',
+			token: k.apiKey
+		})),
+		...goKeys.map((k): ProviderCredential => ({
+			id: k.id,
+			name: k.name,
+			provider: 'opencode-go',
+			token: k.apiKey
+		}))
 	]);
 
 	type ThreadPrefs = { credentialId: string | null; systemPromptId: string | null };
@@ -404,6 +406,7 @@
 			!copilotTokensQuery.isSuccess ||
 			!openAiTokensQuery.isSuccess ||
 			!zenKeysQuery.isSuccess ||
+			!goKeysQuery.isSuccess ||
 			!systemPromptsQuery.isSuccess
 	);
 	let loadError = $derived.by(() => {
@@ -517,6 +520,7 @@
 			!copilotTokensQuery.isSuccess ||
 			!openAiTokensQuery.isSuccess ||
 			!zenKeysQuery.isSuccess ||
+			!goKeysQuery.isSuccess ||
 			!systemPromptsQuery.isSuccess
 		) {
 			return;

@@ -7,7 +7,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
     http::handlers::{
-        auth, chat, copilot_models, copilot_tokens, health, openai_tokens, openrouter_keys,
+        auth, chat, copilot_models, copilot_tokens, go_keys, health, openai_tokens, openrouter_keys,
         openrouter_models, streams, system_prompts, tags, threads, zen_keys,
     },
     state::AppState,
@@ -146,6 +146,15 @@ fn api_router() -> Router<AppState> {
             "/v1/zen-keys/{key_id}",
             axum::routing::patch(zen_keys::update_zen_key)
                 .delete(zen_keys::delete_zen_key),
+        )
+        .route(
+            "/v1/go-keys",
+            get(go_keys::list_go_keys).post(go_keys::create_go_key),
+        )
+        .route(
+            "/v1/go-keys/{key_id}",
+            axum::routing::patch(go_keys::update_go_key)
+                .delete(go_keys::delete_go_key),
         )
 }
 

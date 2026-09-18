@@ -1,5 +1,6 @@
 pub mod copilot_models;
 pub mod copilot_tokens;
+pub mod go_keys;
 pub mod openai_tokens;
 pub mod openrouter_keys;
 pub mod openrouter_models;

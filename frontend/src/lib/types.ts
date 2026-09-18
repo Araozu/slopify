@@ -90,7 +90,14 @@ export interface ZenApiKey {
 	apiKey: string;
 }
 
-export type ProviderSlug = 'openrouter' | 'github-copilot' | 'opencode-zen' | 'openai';
+export interface GoApiKey {
+	id: string;
+	name: string;
+	apiKey: string;
+}
+
+export type ProviderSlug =
+	'openrouter' | 'github-copilot' | 'opencode-zen' | 'opencode-go' | 'openai';
 
 export interface ProviderCredential {
 	id: string;

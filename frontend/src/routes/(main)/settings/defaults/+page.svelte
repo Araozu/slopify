@@ -15,6 +15,7 @@
 	import { copilotTokensQueryOptions } from '$lib/queries/copilot-token-query';
 	import { openAiTokensQueryOptions } from '$lib/queries/openai-token-query';
 	import { zenKeysQueryOptions } from '$lib/queries/zen-key-query';
+	import { goKeysQueryOptions } from '$lib/queries/go-key-query';
 	import { systemPromptsQueryOptions } from '$lib/queries/system-prompt-query';
 	import { openRouterModelsQueryOptions } from '$lib/queries/openrouter-model-query';
 	import { copilotModelsQueryOptions } from '$lib/queries/copilot-model-query';
@@ -24,6 +25,7 @@
 		CopilotToken,
 		OpenAiToken,
 		ZenApiKey,
+		GoApiKey,
 		SystemPrompt,
 		OpenRouterModel,
 		CopilotModel,
@@ -34,6 +36,7 @@
 	const copilotTokensQuery = createQuery(() => copilotTokensQueryOptions());
 	const openAiTokensQuery = createQuery(() => openAiTokensQueryOptions());
 	const zenKeysQuery = createQuery(() => zenKeysQueryOptions());
+	const goKeysQuery = createQuery(() => goKeysQueryOptions());
 	const systemPromptsQuery = createQuery(() => systemPromptsQueryOptions());
 	const openRouterModelsQuery = createQuery(() => openRouterModelsQueryOptions());
 	const copilotModelsQuery = createQuery(() => copilotModelsQueryOptions());
@@ -42,40 +45,39 @@
 	const copilotTokens = $derived((copilotTokensQuery.data ?? []) as CopilotToken[]);
 	const openAiTokens = $derived((openAiTokensQuery.data ?? []) as OpenAiToken[]);
 	const zenKeys = $derived((zenKeysQuery.data ?? []) as ZenApiKey[]);
+	const goKeys = $derived((goKeysQuery.data ?? []) as GoApiKey[]);
 
 	const credentials = $derived<ProviderCredential[]>([
-		...openRouterKeys.map(
-			(k): ProviderCredential => ({
-				id: k.id,
-				name: k.name,
-				provider: 'openrouter',
-				token: k.apiKey
-			})
-		),
-		...copilotTokens.map(
-			(t): ProviderCredential => ({
-				id: t.id,
-				name: t.name,
-				provider: 'github-copilot',
-				token: t.githubToken
-			})
-		),
-		...openAiTokens.map(
-			(t): ProviderCredential => ({
-				id: t.id,
-				name: t.name,
-				provider: 'openai',
-				token: t.token
-			})
-		),
-		...zenKeys.map(
-			(k): ProviderCredential => ({
-				id: k.id,
-				name: k.name,
-				provider: 'opencode-zen',
-				token: k.apiKey
-			})
-		)
+		...openRouterKeys.map((k): ProviderCredential => ({
+			id: k.id,
+			name: k.name,
+			provider: 'openrouter',
+			token: k.apiKey
+		})),
+		...copilotTokens.map((t): ProviderCredential => ({
+			id: t.id,
+			name: t.name,
+			provider: 'github-copilot',
+			token: t.githubToken
+		})),
+		...openAiTokens.map((t): ProviderCredential => ({
+			id: t.id,
+			name: t.name,
+			provider: 'openai',
+			token: t.token
+		})),
+		...zenKeys.map((k): ProviderCredential => ({
+			id: k.id,
+			name: k.name,
+			provider: 'opencode-zen',
+			token: k.apiKey
+		})),
+		...goKeys.map((k): ProviderCredential => ({
+			id: k.id,
+			name: k.name,
+			provider: 'opencode-go',
+			token: k.apiKey
+		}))
 	]);
 
 	const systemPrompts = $derived((systemPromptsQuery.data ?? []) as SystemPrompt[]);
@@ -90,14 +92,19 @@
 		openrouter: 'OR',
 		'github-copilot': 'Copilot',
 		openai: 'OpenAI',
-		'opencode-zen': 'Zen'
+		'opencode-zen': 'Zen',
+		'opencode-go': 'Go'
 	};
 
 	const openRouterCredentials = $derived(credentials.filter((c) => c.provider === 'openrouter'));
 	const copilotCredentials = $derived(credentials.filter((c) => c.provider === 'github-copilot'));
 	const openAiCredentials = $derived(credentials.filter((c) => c.provider === 'openai'));
 	const zenCredentials = $derived(credentials.filter((c) => c.provider === 'opencode-zen'));
+	const goCredentials = $derived(credentials.filter((c) => c.provider === 'opencode-go'));
 
+	// Local draft decoupled from the store until commit: a writable $derived
+	// would push every keystroke into the store and skip localStorage persistence.
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	let modelInput = $state($threadDefaults.model);
 
 	$effect(() => {
@@ -165,7 +172,7 @@
 					</div>
 
 					<div class="rounded-xl border bg-card/50 p-5 shadow-sm backdrop-blur-sm">
-						{#if keysQuery.isPending || copilotTokensQuery.isPending || openAiTokensQuery.isPending || zenKeysQuery.isPending}
+						{#if keysQuery.isPending || copilotTokensQuery.isPending || openAiTokensQuery.isPending || zenKeysQuery.isPending || goKeysQuery.isPending}
 							<p
 								class="text-center text-[11px] font-medium tracking-widest text-muted-foreground/40 uppercase"
 							>
@@ -309,6 +316,38 @@
 													class="rounded bg-muted px-1 py-0.5 text-[8px] font-black tracking-widest text-muted-foreground/50 uppercase"
 												>
 													Zen
+												</span>
+												<span class="text-xs font-bold">{cred.name}</span>
+												<span class="font-mono text-[9px] text-muted-foreground/50"
+													>{cred.token.slice(0, 8)}••••</span
+												>
+											</div>
+											{#if $threadDefaults.credentialId === cred.id}
+												<CheckIcon size={14} weight="bold" class="shrink-0 text-primary" />
+											{/if}
+										</button>
+									{/each}
+								{/if}
+
+								{#if goCredentials.length > 0}
+									<p
+										class="px-3 pt-2 text-[9px] font-black tracking-widest text-muted-foreground/30 uppercase"
+									>
+										OpenCode Go
+									</p>
+									{#each goCredentials as cred (cred.id)}
+										<button
+											class="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50 {$threadDefaults.credentialId ===
+											cred.id
+												? 'bg-primary/5 ring-1 ring-primary/20'
+												: ''}"
+											onclick={() => threadDefaults.setCredentialId(cred.id)}
+										>
+											<div class="flex items-center gap-2">
+												<span
+													class="rounded bg-muted px-1 py-0.5 text-[8px] font-black tracking-widest text-muted-foreground/50 uppercase"
+												>
+													Go
 												</span>
 												<span class="text-xs font-bold">{cred.name}</span>
 												<span class="font-mono text-[9px] text-muted-foreground/50"
